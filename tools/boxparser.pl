@@ -256,7 +256,7 @@ sub get_media_data_box {
   my ( $rdr, $bi ) = @_;
   return {
     bi   => $bi,
-    data => $rdr->read( $bi->{size} );
+    data => $rdr->read( $bi->{size} )
   };
 }
 
