@@ -3,13 +3,26 @@ package BBC::HDS::Bootstrap::Reader;
 use strict;
 use warnings;
 
+use BBC::HDS::Bootstrap::ByteReader;
+
 =head1 NAME
 
 BBC::HDS::Bootstrap::Reader - Read a bootstrap
 
 =cut
 
-sub get_box_info {
+sub new {
+  my ( $class, $data ) = @_;
+  bless { data => $data }, $class;
+}
+
+sub parse {
+  my $self = shift;
+  return _get_boxes(
+    BBC::HDS::Bootstrap::ByteReader->new( $self->{data} ) );
+}
+
+sub _get_box_info {
   my $rdr = shift;
 
   my $pos  = $rdr->pos;
@@ -23,7 +36,7 @@ sub get_box_info {
   };
 }
 
-sub get_full_box {
+sub _get_full_box {
   my ( $rdr, $bi ) = @_;
 
   my $ver   = $rdr->read8;
@@ -36,20 +49,20 @@ sub get_full_box {
   };
 }
 
-sub get_boxes {
+sub _get_boxes {
   my $rdr   = shift;
   my @boxes = ();
   while ( $rdr->avail ) {
-    my $bi = get_box_info( $rdr );
+    my $bi = _get_box_info( $rdr );
 
     if ( $bi->{type} eq 'abst' ) {
-      push @boxes, get_bootstrap_box( $rdr, $bi );
+      push @boxes, _get_bootstrap_box( $rdr, $bi );
     }
     elsif ( $bi->{type} eq 'afra' ) {
-      push @boxes, get_frag_ra_box( $rdr, $bi );
+      push @boxes, _get_frag_ra_box( $rdr, $bi );
     }
     elsif ( $bi->{type} eq 'mdat' ) {
-      push @boxes, get_media_data_box( $rdr, $bi );
+      push @boxes, _get_media_data_box( $rdr, $bi );
     }
     else {
       die "unhandled atom: $bi->{type}\n";
@@ -59,16 +72,16 @@ sub get_boxes {
   return \@boxes;
 }
 
-sub expect_box {
+sub _expect_box {
   my ( $rdr, $type ) = @_;
-  my $bi = get_box_info( $rdr );
+  my $bi = _get_box_info( $rdr );
   die "Expected '$type', got '$bi->{type}'" unless $bi->{type} eq $type;
-  return get_full_box( $rdr, $bi );
+  return _get_full_box( $rdr, $bi );
 }
 
-sub get_segment_runs {
+sub _get_segment_runs {
   my $rdr = shift;
-  expect_box( $rdr, 'asrt' );
+  _expect_box( $rdr, 'asrt' );
   return {
     quality => $rdr->readZs,
     runs    => $rdr->read32ar(
@@ -83,7 +96,7 @@ sub get_segment_runs {
   };
 }
 
-sub get_frag_duration_pair {
+sub _get_frag_duration_pair {
   my $rdr = shift;
   my $rec = {
     first     => $rdr->read32,
@@ -94,21 +107,21 @@ sub get_frag_duration_pair {
   return $rec;
 }
 
-sub get_fragment_runs {
+sub _get_fragment_runs {
   my $rdr = shift;
-  expect_box( $rdr, 'afrt' );
+  _expect_box( $rdr, 'afrt' );
   return {
     timescale => $rdr->read32,
     quality   => $rdr->readZs,
-    runs      => $rdr->read32ar( \&get_frag_duration_pair ),
+    runs      => $rdr->read32ar( \&_get_frag_duration_pair ),
   };
 }
 
-sub get_bootstrap_box {
+sub _get_bootstrap_box {
   my ( $rdr, $bi ) = @_;
 
   my %bs = (
-    bi                    => get_full_box( $rdr, $bi ),
+    bi                    => _get_full_box( $rdr, $bi ),
     version               => $rdr->read32,
     flags                 => $rdr->read8,
     time_scale            => $rdr->read32,
@@ -119,8 +132,8 @@ sub get_bootstrap_box {
     quality               => $rdr->readZs,
     drm_data              => $rdr->readZ,
     metadata              => $rdr->readZ,
-    segment_run_tables    => $rdr->read8ar( \&get_segment_runs ),
-    fragment_run_tables   => $rdr->read8ar( \&get_fragment_runs ),
+    segment_run_tables    => $rdr->read8ar( \&_get_segment_runs ),
+    fragment_run_tables => $rdr->read8ar( \&_get_fragment_runs ),
   );
 
   $bs{profile} = $bs{flags} >> 6;
@@ -130,9 +143,9 @@ sub get_bootstrap_box {
   return \%bs;
 }
 
-sub get_frag_ra_box {
+sub _get_frag_ra_box {
   my ( $rdr, $bi ) = @_;
-  my $fbi = get_full_box( $rdr, $bi );
+  my $fbi = _get_full_box( $rdr, $bi );
 
   my $sizes = $rdr->read8;
 
@@ -174,7 +187,7 @@ sub get_frag_ra_box {
   return \%ra;
 }
 
-sub get_media_data_box {
+sub _get_media_data_box {
   my ( $rdr, $bi ) = @_;
   return {
     bi   => $bi,
