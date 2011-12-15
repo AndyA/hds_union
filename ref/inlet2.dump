@@ -1,0 +1,203 @@
+bootstrap:
+	version: 1
+	is update: false
+	is live: true
+	movie id: 
+	timescale: 1000
+	current media time: 755166161
+	smpte timecode offset: 0
+	servers:
+	qualities:
+segments:
+segment run table:
+	is update: false
+	qualities:
+	entries:
+		segment = 18699, fragments = 10
+		segment = 18700, fragments = 10
+		segment = 18701, fragments = 10
+		segment = 18702, fragments = 10
+		segment = 18703, fragments = 10
+		segment = 18704, fragments = 10
+		segment = 18705, fragments = 10
+		segment = 18706, fragments = 10
+		segment = 18707, fragments = 10
+		segment = 18708, fragments = 10
+		segment = 18709, fragments = 10
+		segment = 18710, fragments = 10
+		segment = 18711, fragments = 10
+		segment = 18712, fragments = 10
+		segment = 18713, fragments = 10
+		segment = 18714, fragments = 10
+		segment = 18715, fragments = 10
+		segment = 18716, fragments = 10
+		segment = 18717, fragments = 10
+		segment = 18718, fragments = 10
+		segment = 18719, fragments = 10
+		segment = 18720, fragments = 10
+		segment = 18721, fragments = 10
+		segment = 18722, fragments = 10
+		segment = 18723, fragments = 10
+		segment = 18724, fragments = 10
+		segment = 18725, fragments = 10
+		segment = 18726, fragments = 10
+		segment = 18727, fragments = 10
+		segment = 18728, fragments = 10
+		segment = 18729, fragments = 10
+		segment = 18730, fragments = 10
+		segment = 18731, fragments = 10
+		segment = 18732, fragments = 10
+		segment = 18733, fragments = 10
+		segment = 18734, fragments = 10
+		segment = 18735, fragments = 10
+		segment = 18736, fragments = 10
+		segment = 18737, fragments = 10
+		segment = 18738, fragments = 10
+		segment = 18739, fragments = 10
+		segment = 18740, fragments = 10
+		segment = 18741, fragments = 10
+		segment = 18742, fragments = 10
+		segment = 18743, fragments = 10
+		segment = 18744, fragments = 10
+		segment = 18745, fragments = 10
+		segment = 18746, fragments = 10
+		segment = 18747, fragments = 10
+		segment = 18748, fragments = 10
+		segment = 18749, fragments = 10
+		segment = 18750, fragments = 10
+		segment = 18751, fragments = 10
+		segment = 18752, fragments = 10
+		segment = 18753, fragments = 10
+		segment = 18754, fragments = 10
+		segment = 18755, fragments = 10
+		segment = 18756, fragments = 10
+		segment = 18757, fragments = 10
+		segment = 18758, fragments = 10
+		segment = 18759, fragments = 10
+		segment = 18760, fragments = 10
+		segment = 18761, fragments = 10
+		segment = 18762, fragments = 10
+		segment = 18763, fragments = 10
+		segment = 18764, fragments = 10
+		segment = 18765, fragments = 10
+		segment = 18766, fragments = 10
+		segment = 18767, fragments = 10
+		segment = 18768, fragments = 10
+		segment = 18769, fragments = 10
+		segment = 18770, fragments = 10
+		segment = 18771, fragments = 10
+		segment = 18772, fragments = 10
+		segment = 18773, fragments = 10
+		segment = 18774, fragments = 10
+		segment = 18775, fragments = 10
+		segment = 18776, fragments = 10
+		segment = 18777, fragments = 10
+		segment = 18778, fragments = 10
+		segment = 18779, fragments = 10
+		segment = 18780, fragments = 10
+		segment = 18781, fragments = 10
+		segment = 18782, fragments = 10
+		segment = 18783, fragments = 10
+		segment = 18784, fragments = 10
+		segment = 18785, fragments = 10
+		segment = 18786, fragments = 10
+		segment = 18787, fragments = 10
+		segment = 18788, fragments = 10
+		segment = 18789, fragments = 10
+		segment = 18790, fragments = 10
+		segment = 18791, fragments = 10
+		segment = 18792, fragments = 10
+		segment = 18793, fragments = 10
+		segment = 18794, fragments = 10
+		segment = 18795, fragments = 10
+		segment = 18796, fragments = 10
+		segment = 18797, fragments = 10
+		segment = 18798, fragments = 10
+		segment = 18799, fragments = 10
+		segment = 18800, fragments = 10
+		segment = 18801, fragments = 10
+		segment = 18802, fragments = 10
+		segment = 18803, fragments = 10
+		segment = 18804, fragments = 10
+		segment = 18805, fragments = 10
+		segment = 18806, fragments = 10
+		segment = 18807, fragments = 10
+		segment = 18808, fragments = 10
+		segment = 18809, fragments = 10
+		segment = 18810, fragments = 10
+		segment = 18811, fragments = 10
+		segment = 18812, fragments = 10
+		segment = 18813, fragments = 10
+		segment = 18814, fragments = 10
+		segment = 18815, fragments = 10
+		segment = 18816, fragments = 10
+		segment = 18817, fragments = 10
+		segment = 18818, fragments = 10
+		segment = 18819, fragments = 10
+		segment = 18820, fragments = 10
+		segment = 18821, fragments = 10
+		segment = 18822, fragments = 10
+		segment = 18823, fragments = 10
+		segment = 18824, fragments = 10
+		segment = 18825, fragments = 10
+		segment = 18826, fragments = 10
+		segment = 18827, fragments = 10
+		segment = 18828, fragments = 10
+		segment = 18829, fragments = 10
+		segment = 18830, fragments = 10
+		segment = 18831, fragments = 10
+		segment = 18832, fragments = 10
+		segment = 18833, fragments = 10
+		segment = 18834, fragments = 10
+		segment = 18835, fragments = 10
+		segment = 18836, fragments = 10
+		segment = 18837, fragments = 10
+		segment = 18838, fragments = 10
+		segment = 18839, fragments = 10
+		segment = 18840, fragments = 10
+		segment = 18841, fragments = 10
+		segment = 18842, fragments = 10
+		segment = 18843, fragments = 10
+		segment = 18844, fragments = 10
+		segment = 18845, fragments = 10
+		segment = 18846, fragments = 10
+		segment = 18847, fragments = 10
+		segment = 18848, fragments = 10
+		segment = 18849, fragments = 10
+		segment = 18850, fragments = 10
+		segment = 18851, fragments = 10
+		segment = 18852, fragments = 10
+		segment = 18853, fragments = 10
+		segment = 18854, fragments = 10
+		segment = 18855, fragments = 10
+		segment = 18856, fragments = 10
+		segment = 18857, fragments = 10
+		segment = 18858, fragments = 10
+		segment = 18859, fragments = 10
+		segment = 18860, fragments = 10
+		segment = 18861, fragments = 10
+		segment = 18862, fragments = 10
+		segment = 18863, fragments = 10
+		segment = 18864, fragments = 10
+		segment = 18865, fragments = 10
+		segment = 18866, fragments = 10
+		segment = 18867, fragments = 10
+		segment = 18868, fragments = 10
+		segment = 18869, fragments = 10
+		segment = 18870, fragments = 10
+		segment = 18871, fragments = 10
+		segment = 18872, fragments = 10
+		segment = 18873, fragments = 10
+		segment = 18874, fragments = 10
+		segment = 18875, fragments = 10
+		segment = 18876, fragments = 10
+		segment = 18877, fragments = 10
+		segment = 18878, fragments = 10
+		segment = 18879, fragments = 10
+		segment = 18880, fragments = 1
+fragments:
+fragment run table:
+	is update: false
+	qualities:
+	entries:
+		fragment = 186981, timestamp = 747922164, duration = 4000
