@@ -3,3 +3,4 @@ default:
 
 test:
 	prove -Ilib -rb t
+
