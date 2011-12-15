@@ -23,7 +23,7 @@ sub data {
   my @box  = ();
   for my $atom ( @{ $self->{bs} } ) {
     my $type = $atom->{bi}{type};
-    my $wtr  = BBC::HDS::Bootstrap::BoxWriter->new( $type );
+    my $wtr  = $self->_writer( $atom->{bi} );
     if ( $type eq 'abst' ) {
       $self->_put_bootstrap_box( $wtr, $atom );
     }
@@ -47,9 +47,15 @@ sub _put_full_box {
   $wtr->write24( $bi->{flags} );
 }
 
+sub _writer {
+  my ( $self, $bi ) = @_;
+  my $wtr = BBC::HDS::Bootstrap::BoxWriter->new( $bi->{type} );
+  $self->_put_full_box( $wtr, $bi );
+  return $wtr;
+}
+
 sub _put_bootstrap_box {
   my ( $self, $wtr, $atom ) = @_;
-  $self->_put_full_box( $wtr, $atom->{bi} );
 
   my $flags
    = ( $atom->{profile} << 6 ) | ( $atom->{live} ? 0x20 : 0x00 )
@@ -74,8 +80,7 @@ sub _put_segment_runs {
     sub {
       my ( undef, $run ) = @_;
 
-      my $w = BBC::HDS::Bootstrap::BoxWriter->new( 'asrt' );
-      $self->_put_full_box( $w, $run->{bi} );
+      my $w = $self->_writer( $run->{bi} );
 
       $w->writeZs( @{ $run->{quality} } );
       $w->write32ar(
@@ -100,8 +105,7 @@ sub _put_fragment_runs {
     sub {
       my ( undef, $run ) = @_;
 
-      my $w = BBC::HDS::Bootstrap::BoxWriter->new( 'afrt' );
-      $self->_put_full_box( $w, $run->{bi} );
+      my $w = $self->_writer( $run->{bi} );
 
       $w->write32( $run->{timescale} );
       $w->writeZs( @{ $run->{quality} } );
