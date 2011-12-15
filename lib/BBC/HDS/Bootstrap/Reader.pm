@@ -81,8 +81,8 @@ sub _expect_box {
 
 sub _get_segment_runs {
   my $rdr = shift;
-  _expect_box( $rdr, 'asrt' );
   return {
+    bi      => _expect_box( $rdr, 'asrt' ),
     quality => $rdr->readZs,
     runs    => $rdr->read32ar(
       sub {
@@ -109,8 +109,8 @@ sub _get_frag_duration_pair {
 
 sub _get_fragment_runs {
   my $rdr = shift;
-  _expect_box( $rdr, 'afrt' );
   return {
+    bi        => _expect_box( $rdr, 'afrt' ),
     timescale => $rdr->read32,
     quality   => $rdr->readZs,
     runs      => $rdr->read32ar( \&_get_frag_duration_pair ),

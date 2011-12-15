@@ -15,6 +15,7 @@ sub new {
   my $class = shift;
   my $self  = $class->SUPER::new;
   $self->{type} = shift;
+  return $self;
 }
 
 sub box {
