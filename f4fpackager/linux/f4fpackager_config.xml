@@ -1,0 +1,25 @@
+<!-- How to use the f4fpackager_config.xml 	:								-->
+<!-- The f4fpackager_config.xml does not need to be fed into the 			-->
+<!-- command line tool. Any settings made here will be applied to the 		-->
+<!-- offline packager.  These settings can be overidden in the command 		-->
+<!-- line allowing certain settings to be applied to many videos without 	-->
+<!-- having to write it in the command line.								-->
+<offline>
+	<!-- This is only a few of the basic settings, you can continue to add 	-->
+	<!-- more settings.  All the settings that are possible in the 			-->
+	<!-- f4fpackager can be found when running the help command in the		-->
+	<!-- the packager.														-->
+	
+	<!-- The file that needs to be fragmented ex. example.f4v-->
+	<input-file></input-file>
+	
+	<!-- The path in which the output files should go, sarting from the -->
+	<!-- current dierctory  ex. output/path 							-->
+	<output-path></output-path>
+	
+	<!-- Target length of each fragments in seconds.   -->
+	<fragment-duration></fragment-duration>
+	
+	<!-- Target length for each segment in seconds. -->
+	<segment-duration></segment-duration>
+</offline>
