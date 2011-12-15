@@ -1,0 +1,8 @@
+<manifest xmlns="http://ns.adobe.com/f4m/2.0">
+  <dvrInfo windowDuration="7200"/>
+  <media href="http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/livepkgr/_definst_/inlet/inlet1.f4m" bitrate="176"/>
+  <media href="http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/livepkgr/_definst_/inlet/inlet2.f4m" bitrate="392"/>
+  <media href="http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/livepkgr/_definst_/inlet/inlet3.f4m" bitrate="496"/>
+  <media href="http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/livepkgr/_definst_/inlet/inlet4.f4m" bitrate="796"/>
+  <media href="http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/livepkgr/_definst_/inlet/inlet5.f4m" bitrate="1500"/>
+</manifest>

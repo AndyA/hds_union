@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://ns.adobe.com/f4m/1.0">
+	<id>
+		livepkgr/events/_definst_/inlet
+	</id>
+	<streamType>
+		live
+	</streamType>
+	<duration>
+		0
+	</duration>
+	<bootstrapInfo
+		 profile="named"
+		 url="../../../streams/livepkgr/streams/_definst_/inlet1/inlet1.bootstrap"
+		 id="bootstrap6093"
+	>
+	</bootstrapInfo>
+	<media
+		 streamId="inlet1"
+		 url="../../../streams/livepkgr/streams/_definst_/inlet1/inlet1"
+		 bootstrapInfoId="bootstrap6093"
+	>
+		<metadata>
+			AgAKb25NZXRhRGF0YQgAAAAAAAhkdXJhdGlvbgBAIAUeuFHrhQAFd2lkdGgAQHkAAAAAAAAABmhlaWdodABAbAAAAAAAAAAMdmlkZW9jb2RlY2lkAgAESDI2NAAMYXVkaW9jb2RlY2lkAgAEbXA0YQAKYXZjcHJvZmlsZQBAUIAAAAAAAAAIYXZjbGV2ZWwAQD4AAAAAAAAABmFhY2FvdAAAAAAAAAAAAAAOdmlkZW9mcmFtZXJhdGUA//gAAAAAAAAAD2F1ZGlvc2FtcGxlcmF0ZQBA5YiAAAAAAAANYXVkaW9jaGFubmVscwBAAAAAAAAAAAAJdHJhY2tpbmZvCgAAAAMDAAZsZW5ndGgAAAAAAAAAAAAACXRpbWVzY2FsZQBAj0AAAAAAAAAIbGFuZ3VhZ2UCAANlbmcAAAkDAAZsZW5ndGgAAAAAAAAAAAAACXRpbWVzY2FsZQBAj0AAAAAAAAAIbGFuZ3VhZ2UCAANlbmcAAAkDAAZsZW5ndGgAAAAAAAAAAAAACXRpbWVzY2FsZQBAj0AAAAAAAAAIbGFuZ3VhZ2UCAANlbmcAAAkAAAk=
+		</metadata>
+	</media>
+</manifest>
