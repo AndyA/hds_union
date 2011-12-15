@@ -21,13 +21,13 @@ my $srcd = file( $src )->slurp;
 my $rdr = BBC::HDS::Bootstrap::Reader->new( $srcd );
 my $bs  = $rdr->parse;
 
-#print Dumper( $bs );
+print Dumper( $bs );
 
-my $wtr  = BBC::HDS::Bootstrap::Writer->new( $bs );
-my $dstd = $wtr->data;
+#my $wtr  = BBC::HDS::Bootstrap::Writer->new( $bs );
+#my $dstd = $wtr->data;
 
-my $fh = file( $dst )->openw;
-print $fh $dstd;
+#my $fh = file( $dst )->openw;
+#print $fh $dstd;
 
 #print hexdump( $dstd );
 

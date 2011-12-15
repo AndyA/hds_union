@@ -170,7 +170,7 @@ sub _get_frag_ra_box {
   );
 
   if ( $sizes & 0x20 ) {
-    $ra{gloabls} = $rdr->read32ar(
+    $ra{globals} = $rdr->read32ar(
       sub {
         my $rdr = shift;
         return {

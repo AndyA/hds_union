@@ -130,10 +130,46 @@ sub _put_fragment_runs {
 
 sub _put_frag_ra_box {
   my ( $self, $wtr, $atom ) = @_;
+
+  my $sizes = $atom->{sizes};
+  $sizes = $sizes & ~0x20 | ( $atom->{globals} ? 0x20 : 0x00 );
+
+  my $wt_id
+   = ( $sizes & 0x80 )
+   ? sub { $wtr->write32( @_ ) }
+   : sub { $wtr->write16( @_ ) };
+  my $wt_ofs
+   = ( $sizes & 0x40 )
+   ? sub { $wtr->write64( @_ ) }
+   : sub { $wtr->write32i( @_ ) };
+
+  $wtr->write8( $sizes )->write32( $atom->{time_scale} );
+
+  $wtr->write32ar(
+    sub {
+      my ( undef, $ra ) = @_;
+      $wtr->write64( $ra->{time} );
+      $wt_ofs->( $ra->{offset} );
+    },
+    @{ $atom->{local} }
+  );
+
+  if ( exists $atom->{globals} ) {
+    $wtr->write32ar(
+      sub {
+        my ( undef, $ra ) = @_;
+        $wtr->write64( $ra->{time} );
+        $wt_id->( $ra->{segment}, $ra->{fragment} );
+        $wt_ofs->( $ra->{afra_offset}, $ra->{offset_from_afra} );
+      },
+      @{ $atom->{globals} }
+    );
+  }
 }
 
 sub _put_media_data_box {
   my ( $self, $wtr, $atom ) = @_;
+  $wtr->write( $atom->{data} );
 }
 
 1;
