@@ -5,36 +5,88 @@ use warnings;
 
 use Data::Dumper;
 use Data::Hexdumper;
+use LWP::UserAgent;
 use Path::Class;
 
-sub walk(@);
+#sub walk(@);
+sub monitor_bootstrap(@);
 
-my $src = shift @ARGV;
+#my $src = shift @ARGV;
 
-my $bs = file( $src )->slurp;
+#my $bs = file( $src )->slurp;
 
-walk $bs, sub {
-  my ( $size, $type, $data ) = @_;
-  if ( $type eq 'abst' ) {
-    my $hdr = substr $data, 0, 35;
-    walk substr( $data, 35 ), sub {
-      my ( $size, $type, $data ) = @_;
-      if ( $type eq 'asrt' ) {
-        return $size + 1;
-      }
-      elsif ( $type eq 'afrt' ) {
-        return $size + 1;
-      }
-      else {
-        die "Expected 'asrt', got '$type'\n";
-      }
-    };
+my @bs = qw(
+ http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet5/inlet5.bootstrap
+);
+
+monitor_bootstrap $bs[0],
+ back_off(
+  min  => 5,
+  max  => 60,
+  rate => 1.2
+ ),
+ sub {
+  my $resp = shift;
+  $resp->content( '' );
+  print Dumper( $resp );
+ };
+
+sub back_off {
+  my %a        = @_;
+  my $back_off = $a{min};
+
+  return sub {
+    my $resp = shift;
+
+    if ( $resp->is_success ) {
+      $back_off = $a{min};
+      return $resp->freshness_lifetime(
+        heuristic_expiry => 0,
+        h_min            => 1,
+      );
+    }
+
+    my $ttl = int( $back_off );
+    $back_off *= $a{rate};
+    $back_off = $a{max} if $back_off > $a{max};
+    return $ttl;
+  };
+}
+
+sub monitor_bootstrap(@) {
+  my ( $url, $bo, $cb ) = @_;
+  my $ua = LWP::UserAgent->new;
+  while ( 1 ) {
+    my $resp = $ua->get( $url );
+    my $ttl  = $bo->( $resp );
+    $cb->( $resp );
+    last unless defined $ttl;
+    sleep $ttl;
   }
-  else {
-    die "Expected 'abst', got '$type'\n";
-  }
-  return $size;
-};
+}
+
+#walk $bs, sub {
+#  my ( $size, $type, $data ) = @_;
+#  if ( $type eq 'abst' ) {
+#    my $hdr = substr $data, 0, 35;
+#    walk substr( $data, 35 ), sub {
+#      my ( $size, $type, $data ) = @_;
+#      if ( $type eq 'asrt' ) {
+#        return $size + 1;
+#      }
+#      elsif ( $type eq 'afrt' ) {
+#        return $size + 1;
+#      }
+#      else {
+#        die "Expected 'asrt', got '$type'\n";
+#      }
+#    };
+#  }
+#  else {
+#    die "Expected 'abst', got '$type'\n";
+#  }
+#  return $size;
+#};
 
 sub walk(@) {
   my ( $data, $cb ) = @_;
