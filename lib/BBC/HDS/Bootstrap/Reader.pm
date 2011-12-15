@@ -1,22 +1,13 @@
-#!/usr/bin/env perl
-
-package main;
+package BBC::HDS::Bootstrap::Reader;
 
 use strict;
 use warnings;
 
-use lib qw( lib );
+=head1 NAME
 
-use Data::Dumper;
-use Data::Hexdumper;
-use Path::Class;
-use BBC::HDS::Bootstrap::ByteReader;
+BBC::HDS::Bootstrap::Reader - Read a bootstrap
 
-my $src = shift @ARGV;
-my $bs  = file( $src )->slurp;
-
-my $boxes = get_boxes( BBC::HDS::Bootstrap::ByteReader->new( $bs ) );
-print Dumper( $boxes );
+=cut
 
 sub get_box_info {
   my $rdr = shift;
@@ -191,5 +182,6 @@ sub get_media_data_box {
   };
 }
 
-# vim:ts=2:sw=2:sts=2:et:ft=perl
+1;
 
+# vim:ts=2:sw=2:sts=2:et:ft=perl
