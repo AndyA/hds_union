@@ -11,6 +11,8 @@ my @bs = qw(
  http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet5/inlet5.bootstrap
 );
 
+my $next = 1;
+
 monitor_bootstrap $bs[0],
  back_off(
   min  => 5,
@@ -19,8 +21,12 @@ monitor_bootstrap $bs[0],
  ),
  sub {
   my $resp = shift;
-  $resp->content( '' );
-  print Dumper( $resp );
+  if ( $resp->is_success ) {
+    my $fn = sprintf 'bs/bs%05d.bootstrap', $next++;
+    print ">> $fn\n";
+    open my $fh, '>', $fn or die "Can't write $fn: $!\n";
+    print $fh $resp->content;
+  }
  };
 
 sub back_off {
