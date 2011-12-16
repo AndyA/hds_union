@@ -3,9 +3,10 @@ package BBC::HDS::Bootstrap::Merger;
 use strict;
 use warnings;
 
+use BBC::HDS::Bootstrap;
+use Carp qw( croak );
 use Data::Dumper;
 use List::Util qw( max );
-use Carp qw( croak );
 
 =head1 NAME
 
@@ -20,7 +21,8 @@ sub new {
 
 sub merge {
   my $self = shift;
-  return $self->_reduce( map { $_->bs } @{ $self->{bs} } );
+  return BBC::HDS::Bootstrap->new(
+    bs => $self->_reduce( map { $_->bs } @{ $self->{bs} } ) );
 }
 
 sub _reduce {
