@@ -1,4 +1,5 @@
 .*.swp
+.prove
 Session.vim
 bs/
 bsd/
