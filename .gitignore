@@ -1,4 +1,6 @@
-Session.vim
 .*.swp
+Session.vim
+bs/
+bsd/
 foo*
 media/
