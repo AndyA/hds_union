@@ -5,6 +5,7 @@ use warnings;
 
 use BBC::HDS::Bootstrap;
 use BBC::HDS::Bootstrap::ByteReader;
+use Carp qw( croak );
 
 =head1 NAME
 
@@ -20,10 +21,24 @@ sub new {
 sub parse {
   my $self = shift;
   return BBC::HDS::Bootstrap->new(
-    bs => _get_boxes(
-      BBC::HDS::Bootstrap::ByteReader->new( $self->{data} )
+    bs => $self->_clean(
+      _get_boxes(
+        BBC::HDS::Bootstrap::ByteReader->new( $self->{data} )
+      )
     )
   );
+}
+
+sub _clean {
+  my ( $self, $ds ) = @_;
+  return $ds unless ref $ds;
+  return {
+    map { $_ => $self->_clean( $ds->{$_} ) }
+    grep { !/^_/ } keys %$ds
+   }
+   if 'HASH' eq ref $ds;
+  return [ map { $self->_clean( $_ ) } @$ds ] if 'ARRAY' eq ref $ds;
+  croak "Bad type: ", ref $ds;
 }
 
 sub _get_box_info {
@@ -35,7 +50,7 @@ sub _get_box_info {
   $size = $rdr->read64 if $size == 1;
 
   return {
-    size => $size - ( $rdr->pos - $pos ),
+    _size => $size - ( $rdr->pos - $pos ),
     type => $type
   };
 }
@@ -69,8 +84,8 @@ sub _get_boxes {
       push @boxes, _get_media_data_box( $rdr, $bi );
     }
     else {
-      die "unhandled atom: $bi->{type}\n";
-      $rdr->read( $bi->{size} - 8 );
+      croak "unhandled atom: $bi->{type}\n";
+      $rdr->read( $bi->{_size} - 8 );
     }
   }
   return \@boxes;
@@ -79,7 +94,8 @@ sub _get_boxes {
 sub _expect_box {
   my ( $rdr, $type ) = @_;
   my $bi = _get_box_info( $rdr );
-  die "Expected '$type', got '$bi->{type}'" unless $bi->{type} eq $type;
+  croak "Expected '$type', got '$bi->{type}'"
+   unless $bi->{type} eq $type;
   return _get_full_box( $rdr, $bi );
 }
 
@@ -195,7 +211,7 @@ sub _get_media_data_box {
   my ( $rdr, $bi ) = @_;
   return {
     bi   => $bi,
-    data => $rdr->read( $bi->{size} )
+    data => $rdr->read( $bi->{_size} )
   };
 }
 

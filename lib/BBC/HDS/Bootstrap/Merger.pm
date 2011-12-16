@@ -149,7 +149,7 @@ sub _runs {
         return [ _uniq( @$lhs, @$rhs ) ];
       }
       else {
-        croak "Unknown type: $lr";
+        croak "Unknown type $lr at $path";
       }
     }
 
@@ -158,7 +158,7 @@ sub _runs {
       return $r->( $self, $path, $lhs, $rhs );
     }
 
-    croak "Scalar mismatch with no merge rule"
+    croak "Scalar mismatch with no merge rule at $path"
      unless $lhs eq $rhs;
 
     return $lhs;
