@@ -153,6 +153,7 @@ sub live2vod {
   }
 
 #http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet1/inlet1Seg1712-Frag17115
+#http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet1/inlet1Seg1768-Frag17679
   print Dumper( \%media );
 
 }
@@ -171,7 +172,10 @@ sub follow_stream {
    sub {
     my $resp = shift;
     if ( $resp->is_success ) {
+      my $bs
+       = BBC::HDS::Bootstrap::Reader->new( $resp->content )->parse;
       print "bootstrap\n";
+      print Dumper($bs);
     }
    };
 }
