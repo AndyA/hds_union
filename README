@@ -1,0 +1,9 @@
+Makefile         
+NOTES
+f4fpackager       Adobe's f4fpackager
+lib               bootstrap reader / writer / merger
+logs
+ref               reference bootstrap files
+src               Adobe's load test tool
+t                 tests!
+tools             scripts that use the reader / writer / merger modules
