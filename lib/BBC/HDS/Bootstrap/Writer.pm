@@ -21,7 +21,7 @@ sub new {
 sub data {
   my $self = shift;
   my @box  = ();
-  for my $atom ( @{ $self->{bs} } ) {
+  for my $atom ( @{ $self->{bs}->bs } ) {
     my $type = $atom->{bi}{type};
     my $wtr  = $self->_writer( $atom->{bi} );
     if ( $type eq 'abst' ) {

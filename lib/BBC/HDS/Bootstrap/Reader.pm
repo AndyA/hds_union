@@ -3,6 +3,7 @@ package BBC::HDS::Bootstrap::Reader;
 use strict;
 use warnings;
 
+use BBC::HDS::Bootstrap;
 use BBC::HDS::Bootstrap::ByteReader;
 
 =head1 NAME
@@ -18,8 +19,11 @@ sub new {
 
 sub parse {
   my $self = shift;
-  return _get_boxes(
-    BBC::HDS::Bootstrap::ByteReader->new( $self->{data} ) );
+  return BBC::HDS::Bootstrap->new(
+    bs => _get_boxes(
+      BBC::HDS::Bootstrap::ByteReader->new( $self->{data} )
+    )
+  );
 }
 
 sub _get_box_info {

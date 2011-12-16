@@ -20,7 +20,7 @@ sub new {
 
 sub merge {
   my $self = shift;
-  return $self->_reduce( @{ $self->{bs} } );
+  return $self->_reduce( map { $_->bs } @{ $self->{bs} } );
 }
 
 sub _reduce {
