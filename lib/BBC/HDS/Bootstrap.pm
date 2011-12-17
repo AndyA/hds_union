@@ -11,7 +11,7 @@ BBC::HDS::Bootstrap - An HDS bootstrap
 
 =cut
 
-use accessors::ro qw( bs );
+use accessors::ro qw( data );
 
 sub new {
   my $class = shift;
@@ -21,7 +21,7 @@ sub new {
 sub _build_index {
   my $self = shift;
   my %idx  = ();
-  for my $atom ( @{ $self->bs } ) {
+  for my $atom ( @{ $self->data } ) {
     my $type = $atom->{bi}{type};
     push @{ $idx{$type} }, $atom;
   }
@@ -31,6 +31,12 @@ sub _build_index {
 sub index {
   my $self = shift;
   $self->{index} ||= $self->_build_index;
+}
+
+sub get_file_for_time {
+  my ( $self, $time, $quality ) = @_;
+  my $abst = $self->box( abst => 0 );
+  my $afrt = $abst->box( afrt => 0 );
 }
 
 1;

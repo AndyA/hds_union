@@ -22,7 +22,7 @@ sub new {
 sub merge {
   my $self = shift;
   return BBC::HDS::Bootstrap->new(
-    bs => $self->_reduce( map { $_->bs } @{ $self->{bs} } ) );
+    data => $self->_reduce( map { $_->data } @{ $self->{bs} } ) );
 }
 
 sub _reduce {

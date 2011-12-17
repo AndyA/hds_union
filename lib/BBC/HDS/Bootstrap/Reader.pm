@@ -21,7 +21,7 @@ sub new {
 sub parse {
   my $self = shift;
   return BBC::HDS::Bootstrap->new(
-    bs => $self->_clean(
+    data => $self->_clean(
       _get_boxes(
         BBC::HDS::Bootstrap::ByteReader->new( $self->{data} )
       )

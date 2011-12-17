@@ -269,9 +269,9 @@ plan tests => 1 * @tests;
 for my $t ( @tests ) {
   my $name = $t->{name};
   my $m    = BBC::HDS::Bootstrap::Merger->new(
-    map { BBC::HDS::Bootstrap->new( bs => $_ ) } @{ $t->{merge} } );
+    map { BBC::HDS::Bootstrap->new( data => $_ ) } @{ $t->{merge} } );
   my $got = $m->merge;
-  eq_or_diff $got->bs, $t->{expect}, "$name: merge";
+  eq_or_diff $got->data, $t->{expect}, "$name: merge";
 }
 
 # vim:ts=2:sw=2:et:ft=perl
