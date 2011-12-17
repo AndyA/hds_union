@@ -34,9 +34,16 @@ sub index {
 }
 
 sub get_file_for_time {
-  my ( $self, $time, $quality ) = @_;
+  my ( $self, $time ) = @_;
   my $abst = $self->box( abst => 0 );
+  return unless $abst;
+
+  return
+   unless $time >= 0
+     && $time * $abst->time_scale < $abst->current_media_time;
+
   my $afrt = $abst->box( afrt => 0 );
+  my $asrt = $abst->box( asrt => 0 );
 }
 
 1;
