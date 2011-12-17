@@ -3,6 +3,8 @@ package BBC::HDS::Bootstrap;
 use strict;
 use warnings;
 
+use base qw( BBC::HDS::Bootstrap::Container );
+
 =head1 NAME
 
 BBC::HDS::Bootstrap - An HDS bootstrap

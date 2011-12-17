@@ -3,13 +3,13 @@
 use strict;
 use warnings;
 
-use Test::More;
-use Test::Differences;
-
-use Data::Hexdumper;
-use Path::Class;
 use BBC::HDS::Bootstrap::Reader;
 use BBC::HDS::Bootstrap::Writer;
+use Data::Hexdumper;
+use Path::Class;
+
+use Test::More;
+use Test::Differences;
 
 my @bs = glob 'ref/*.bootstrap';
 
