@@ -1,7 +1,9 @@
 .*.swp
+.DS_Store
 .prove
 Session.vim
 bs/
 bsd/
 foo*
 media/
+tags

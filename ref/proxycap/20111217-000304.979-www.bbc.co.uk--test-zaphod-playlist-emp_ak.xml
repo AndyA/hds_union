@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<playlist revision="1">
+	<id>Adobe HDS : Sample Content</id>
+	<title>Adobe HDS Demo</title>
+	
+	<summary>Live coverage of Wimbledon 2010 on BBC One. (UK users only)</summary>
+	<link rel="alternate" href="http://news.bbc.co.uk/sport1/hi/tennis/8751001.stm"/>
+	<link rel="holding" href="http://news.bbcimg.co.uk/media/images/53779000/jpg/_53779712_sharapova_gi.jpg" width="640" height="360" type="image/jpeg"/>	
+	<updated>2010-06-21T07:16:43Z</updated>
+	<item kind="programme" live="true" group="bbc_one_live" identifier="8751001">
+		<id>tag:bbc.co.uk,2008:cps:story:8751001</id>
+		<media bitrate="800" encoding="h264" expires="2038-01-01T00:00:00+00:00" height="360" kind="video" service="Adobe HDS" type="video/mp4" width="640">
+		 <connection authExpires="" authString="" href="http://www.bbc.co.uk/test/zaphod/hds/emp_ak.f4m" 
+		 identifier="" 
+		 kind="adobe" priority="10" protocol="http" server="" supplier="akamai_hds" transferFormat="hds" application=""/>
+		 </media>
+		
+	</item>
+</playlist>

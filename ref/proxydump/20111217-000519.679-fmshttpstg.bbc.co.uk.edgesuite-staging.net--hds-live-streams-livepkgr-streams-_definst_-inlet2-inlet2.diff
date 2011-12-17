@@ -1,0 +1,20 @@
+--- proxydump/20111217-000515.633-fmshttpstg.bbc.co.uk.edgesuite-staging.net--hds-live-streams-livepkgr-streams-_definst_-inlet2-inlet2.dump	2011-12-17 11:17:56.971411652 +0000
++++ proxydump/20111217-000519.679-fmshttpstg.bbc.co.uk.edgesuite-staging.net--hds-live-streams-livepkgr-streams-_definst_-inlet2-inlet2.dump	2011-12-17 11:17:56.991406262 +0000
+@@ -4,7 +4,7 @@
+ 	is live: true
+ 	movie id: 
+ 	timescale: 1000
+-	current media time: 68714325
++	current media time: 68718319
+ 	smpte timecode offset: 0
+ 	servers:
+ 	qualities:
+@@ -194,7 +194,7 @@
+ 		segment = 1715, fragments = 10
+ 		segment = 1716, fragments = 10
+ 		segment = 1717, fragments = 10
+-		segment = 1718, fragments = 8
++		segment = 1718, fragments = 9
+ fragments:
+ fragment run table:
+ 	is update: false
