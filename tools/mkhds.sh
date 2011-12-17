@@ -15,6 +15,10 @@ for br in {1..6}; do
   $f4fpackager  \
     --input-file=$src \
     --bitrate=$br \
+    --external-bootstrap \
+    --segment-duration=30 \
+    --frames-per-keyframe-interval=$[25*12] \
+    --frame-rate=25 \
     $prevf4m
   prevf4m="--manifest-file=$f4m"
 done
