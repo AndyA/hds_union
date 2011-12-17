@@ -1,7 +1,7 @@
 #!/bin/bash
 
-in="bs"
-out="bsd"
+in="proxycap"
+out="proxydump"
 
 rm -rf "$out"
 mkdir -p "$out"
