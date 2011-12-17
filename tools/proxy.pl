@@ -8,7 +8,7 @@ use POSIX qw( strftime );
 use Time::HiRes qw( time );
 use URI;
 
-use constant OUT => 'proxycap';
+use constant OUT => 'ref/proxycap';
 
 my $proxy = HTTP::Proxy->new( port => 8888, logmask => 0x22 );
 

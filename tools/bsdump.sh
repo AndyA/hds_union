@@ -1,7 +1,7 @@
 #!/bin/bash
 
-in="proxycap"
-out="proxydump"
+in="ref/proxycap"
+out="ref/proxydump"
 
 rm -rf "$out"
 mkdir -p "$out"
