@@ -12,16 +12,14 @@ REFDUMP=$(patsubst ref/%.bootstrap, ref/%.dump, $(BOOTSTRAP))
 
 ref: $(REFPL) $(REFHEX) $(REFDUMP)
 
-ref/%.pl: ref/%.bootstrap
+%.pl: %.bootstrap
 	perl tools/boxparser.pl $< | perltidy > $@
 
-ref/%.hex: ref/%.bootstrap
+%.hex: %.bootstrap
 	hexdump -C $< > $@
 
-ref/%.dump: ref/%.bootstrap
-	[ `uname` == 'Linux' ] && \
-	  ./f4fpackager/linux/f4fpackager --input-file=$< --inspect-bootstrap > $@ || \
-	  touch $@
+%.dump: %.bootstrap
+	-./f4fpackager/linux/f4fpackager --input-file=$< --inspect-bootstrap > $@
 
 ctags:
 	-rm -f tags
