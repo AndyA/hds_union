@@ -48,6 +48,8 @@ sub AUTOLOAD {
   my $name = our $AUTOLOAD;
   $name =~ s/.*://;    # strip fully-qualified portion
 
+  return if $name =~ /^[A-Z]+$/;
+
   my $ac = $self->can( $name )
    or croak "Can't access `$name' field in class $type";
 
