@@ -3,9 +3,10 @@ package BBC::HDS::Bootstrap::Reader;
 use strict;
 use warnings;
 
-use BBC::HDS::Bootstrap;
 use BBC::HDS::Bootstrap::ByteReader;
+use BBC::HDS::Bootstrap;
 use Carp qw( croak );
+use Path::Class;
 
 =head1 NAME
 
@@ -16,6 +17,12 @@ BBC::HDS::Bootstrap::Reader - Read a bootstrap
 sub new {
   my ( $class, $data ) = @_;
   bless { data => $data }, $class;
+}
+
+sub load {
+  my ( $class, $filename ) = @_;
+  my $data = file( $filename )->slurp;
+  return $class->new( $data )->parse;
 }
 
 sub parse {
