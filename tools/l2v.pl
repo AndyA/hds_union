@@ -8,32 +8,24 @@ use lib qw( lib );
 use BBC::HDS::Bootstrap::Reader;
 use Data::Dumper;
 use Data::Hexdumper;
+use Getopt::Long;
 use LWP::UserAgent;
 use MIME::Base64;
 use Path::Class;
+use Time::Timecode;
 use URI;
 use XML::LibXML::XPathContext;
 use XML::LibXML;
 
-my $manifest = 'http://www.bbc.co.uk/test/zaphod/hds/emp_ak.f4m';
+use constant FPS => 25;
+use constant DAY => 24 * 60 * 60;
+
+my $Output = 'l2v';
+GetOptions( 'output:s' => \$Output );
+
+my $manifest = shift or die "Please supply a manifest URL";
 
 live2vod( $manifest );
-
-#monitor_bootstrap $bs[0],
-# back_off(
-#  min  => 5,
-#  max  => 60,
-#  rate => 1.2
-# ),
-# sub {
-#  my $resp = shift;
-#  if ( $resp->is_success ) {
-#    my $fn = sprintf 'bs/bs%05d.bootstrap', $next++;
-#    print ">> $fn\n";
-#    open my $fh, '>', $fn or die "Can't write $fn: $!\n";
-#    print $fh $resp->content;
-#  }
-# };
 
 sub ua() { LWP::UserAgent->new }
 
@@ -65,7 +57,7 @@ sub monitor_bootstrap {
   while ( 1 ) {
     my $resp = $ua->get( $uri );
     my $ttl  = $bo->( $resp );
-    $cb->( $resp );
+    last unless $cb->( $resp );
     last unless defined $ttl;
     sleep $ttl;
   }
@@ -141,27 +133,70 @@ sub live2vod {
      = media_manifest( URI->new_abs( $href, $manifest ) );
   }
 
-  my @br = sort { $a <=> $b } keys %media;
-
-  if ( @br ) {
-    my $br  = shift @br;
-    my @sid = sort keys %{ $media{$br} };
-    if ( @sid ) {
-      my $sid = shift @sid;
-      follow_stream( $media{$br}{$sid} );
-    }
-  }
-
-#http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet1/inlet1Seg1712-Frag17115
-#http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet1/inlet1Seg1768-Frag17679
-  print Dumper( \%media );
+  download( \%media );
 
 }
 
+sub download {
+  my $media = shift;
+  my @br = sort { $a <=> $b } keys %$media;
+
+  while ( my $br = shift @br ) {
+    my @sid = sort keys %{ $media->{$br} };
+    while ( my $sid = shift @sid ) {
+      my $pid = fork;
+      unless ( $pid ) {
+        follow_stream( $media->{$br}{$sid} );
+        exit;
+      }
+    }
+  }
+
+  1 while wait != -1;
+}
+
 sub follow_stream {
-  my $stream = shift;
+  my ( $stream ) = @_;
+
+  my %got = ();
 
   my $bs_uri = $stream->{bs}{url};
+
+  my $fetcher = sub {
+    my ( $seg, $frag ) = @_;
+
+    my $uri = URI->new( join '', $stream->{url}, sprintf 'Seg%d-Frag%d',
+      $seg->{first}, $frag->{first} );
+
+    return if $got{$uri}++;
+
+    my @path = split /\//, $uri->path;
+    my $base = pop @path;
+    my $dir  = dir( $Output, @path );
+    my $tmp  = file( $dir, "$base.tmp" );
+    my $file = file( $dir, $base );
+
+    $tmp->remove;
+    return if -f $file;
+
+    my $ts = as_timecode( $frag->{timestamp} / 1000 );
+    print "[$ts] Fetching $uri\n";
+    my $resp = ua->get( $uri );
+
+    unless ( $resp->is_success ) {
+      warn $resp->status_line, "\n";
+      return;
+    }
+
+    $dir->mkpath;
+    {
+      my $fh = $tmp->openw;
+      print $fh $resp->content;
+    }
+
+    rename $tmp, $file or die "Can't rename $tmp as $file\n";
+
+  };
 
   monitor_bootstrap $bs_uri,
    back_off(
@@ -171,13 +206,37 @@ sub follow_stream {
    ),
    sub {
     my $resp = shift;
-    if ( $resp->is_success ) {
-      my $bs
-       = BBC::HDS::Bootstrap::Reader->new( $resp->content )->parse;
-      print "bootstrap\n";
-      print Dumper($bs);
-    }
+    return fetch_from_bootstrap( $resp->content, $fetcher )
+     if $resp->is_success;
+    return 1;
    };
+}
+
+sub fetch_from_bootstrap {
+  my ( $bs_data, $cb ) = @_;
+  my $bs = BBC::HDS::Bootstrap::Reader->new( $bs_data )->parse;
+  my $abst = $bs->box( abst => 0 );
+  die "No abst" unless $abst;
+
+  my $rts = $abst->run_table;
+  for my $rt ( @$rts ) {
+    for my $seg ( @$rt ) {
+      next unless $seg->{first};
+      for my $frag ( @{ $seg->{f} } ) {
+        if ( $frag->{duration} == 0 ) {
+          return if $frag->{discontinuity};
+          next;
+        }
+        $cb->( $seg, $frag );
+      }
+    }
+  }
+  return 1;
+}
+
+sub as_timecode {
+  my $fr = $_[0] * FPS % ( DAY * FPS );
+  Time::Timecode->new( $fr )->to_string;
 }
 
 # vim:ts=2:sw=2:sts=2:et:ft=perl
