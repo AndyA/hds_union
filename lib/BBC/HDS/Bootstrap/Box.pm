@@ -32,7 +32,14 @@ sub _subclass_for {
   croak "Bad box type: $type" unless $type =~ /^\w+$/;
   my $clazz = join '::', __PACKAGE__, $type;
   eval "use $clazz";
-  croak $@ if $@;
+  if ( my $err = $@ ) {
+    if ( $err =~ /Can't\s+locate\s+\S+\s+in\s+\@INC/ ) {
+      no strict 'refs';
+      @{"${clazz}::ISA"} = ( 'BBC::HDS::Bootstrap::Box' );
+      return $clazz;
+    }
+    croak $err;
+  }
   return $clazz;
 }
 
