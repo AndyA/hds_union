@@ -1,0 +1,21 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use lib qw( lib );
+
+use BBC::HDS::Bootstrap;
+use BBC::HDS::Bootstrap::Writer;
+
+my $dst = shift @ARGV;
+my $bs  = BBC::HDS::Bootstrap->new(
+  data => eval do { local $/; <> }
+);
+die $@ if $@;
+my $data = BBC::HDS::Bootstrap::Writer->new( $bs )->data;
+open my $bsf, '>', $dst or die "Can't write $dst: $!\n";
+print $bsf $data;
+
+# vim:ts=2:sw=2:sts=2:et:ft=perl
+

@@ -6,8 +6,6 @@ use warnings;
 use lib qw( lib );
 
 use Data::Dumper;
-use Data::Hexdumper;
-use Path::Class;
 use BBC::HDS::Bootstrap::Reader;
 
 my $src = shift @ARGV;
