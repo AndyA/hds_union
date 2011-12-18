@@ -9,25 +9,11 @@ use Data::Dumper;
 use Data::Hexdumper;
 use Path::Class;
 use BBC::HDS::Bootstrap::Reader;
-use BBC::HDS::Bootstrap::Writer;
 
 my $src = shift @ARGV;
-my $dst = "$src.out";
-
-my $srcd = file( $src )->slurp;
-
-my $rdr = BBC::HDS::Bootstrap::Reader->new( $srcd );
-my $bs  = $rdr->parse;
-
-print Dumper( $bs );
-
-#my $wtr  = BBC::HDS::Bootstrap::Writer->new( $bs );
-#my $dstd = $wtr->data;
-
-#my $fh = file( $dst )->openw;
-#print $fh $dstd;
-
-#print hexdump( $dstd );
+print Data::Dumper->new(
+  [ BBC::HDS::Bootstrap::Reader->load( $src )->data ] )->Indent( 2 )
+ ->Quotekeys( 0 )->Useqq( 1 )->Terse( 1 )->Dump;
 
 # vim:ts=2:sw=2:sts=2:et:ft=perl
 
