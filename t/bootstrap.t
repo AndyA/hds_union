@@ -23,6 +23,10 @@ isa_ok $afrt, 'BBC::HDS::Bootstrap::Box';
 isa_ok $afrt, 'BBC::HDS::Bootstrap::Box::afrt';
 
 is $abst->current_media_time, 752262158, 'read property';
+#my $rt = $abst->run_table;
+#splice @{ $rt->[0][3]{f} }, 2, 3;
+#$abst->set_run_table( $rt );
+#diag Dumper( $abst );
 
 # vim:ts=2:sw=2:et:ft=perl
 

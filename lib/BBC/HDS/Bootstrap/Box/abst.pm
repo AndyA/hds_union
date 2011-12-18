@@ -11,6 +11,13 @@ BBC::HDS::Bootstrap::Box::abst - abst box
 
 =cut
 
+=for NOTES
+
+TODO figure out the semantics of missing fragments. Does a missing
+fragment make a gap in a segment?
+
+=cut
+
 sub _build_index {
   my $self = shift;
   my $box  = $self->data;
@@ -128,6 +135,57 @@ sub _make_run_table {
 sub run_table {
   my $self = shift;
   $self->{runtable} ||= $self->_make_run_table;
+}
+
+sub _make_next {
+  my ( $self, $prev ) = @_;
+  return unless $prev;
+  return {
+    first     => $prev->{first} + 1,
+    duration  => $prev->{duration},
+    timestamp => $prev->{timestamp} + $prev->{duration},
+  };
+}
+
+sub set_run_table {
+  my ( $self, $rts ) = @_;
+
+  my $box = $self->data;
+
+  my @srt = ();
+  my @frt = ();
+
+  for my $rt ( @$rts ) {
+    my $segs  = [];
+    my $frags = [];
+    my $prev  = undef;
+    for my $seg ( @$rt ) {
+      push @$segs, { first => $seg->{first}, frags => $seg->{frags} }
+       if exists $seg->{first};
+      F: for my $frag ( @{ $seg->{f} } ) {
+        my $next = $self->_make_next( $prev );
+        if ( !exists $frag->{discontinuity}
+          && $frag->{duration} != 0
+          && $next
+          && !exists $next->{discontinuity}
+          && $next->{first} == $frag->{first}
+          && $next->{timestamp} == $frag->{timestamp}
+          && $next->{duration} == $frag->{duration} ) {
+          $prev = $next;
+          next F;
+        }
+        $prev = {%$frag};
+        delete $prev->{type};
+        push @$frags, $prev;
+      }
+    }
+    push @srt, $segs;
+    push @frt, $frags;
+  }
+
+  $box->{segment_run_tables}  = \@srt;
+  $box->{fragment_run_tables} = \@frt;
+  delete $self->{runtable};
 }
 
 1;
