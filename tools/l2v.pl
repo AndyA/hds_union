@@ -145,6 +145,7 @@ sub download {
     my @sid = sort keys %{ $media->{$br} };
     while ( my $sid = shift @sid ) {
       my $pid = fork;
+      defined $pid or die "Can't fork";
       unless ( $pid ) {
         follow_stream( $media->{$br}{$sid} );
         exit;
