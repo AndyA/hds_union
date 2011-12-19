@@ -55,6 +55,7 @@ sub monitor_bootstrap {
   my ( $uri, $bo, $cb ) = @_;
   my $ua = ua;
   while ( 1 ) {
+    print "Fetching $uri\n";
     my $resp = $ua->get( $uri );
     my $ttl  = $bo->( $resp );
     last unless $cb->( $resp );
@@ -103,6 +104,7 @@ sub media_manifest {
   }
 
   my %stream = ();
+
   for my $media ( $xpc->findnodes( '/m1:manifest/m1:media', $f4m ) ) {
     my ( $stream_id, $url, $bi_id )
      = attr( $media, 'streamId', 'url', 'bootstrapInfoId' );
@@ -126,11 +128,15 @@ sub live2vod {
 
   my ( $f4m, $xpc ) = fetch_manifest( $manifest );
 
+  my $base = $manifest;
+  for my $bu ( $xpc->findnodes( '/m2:manifest/m2:baseURL', $f4m ) ) {
+    $base = URI->new_abs( $bu->textContent, $base );
+  }
+
   my %media = ();
   for my $media ( $xpc->findnodes( '/m2:manifest/m2:media', $f4m ) ) {
     my ( $href, $bitrate ) = attr( $media, 'href', 'bitrate' );
-    $media{$bitrate}
-     = media_manifest( URI->new_abs( $href, $manifest ) );
+    $media{$bitrate} = media_manifest( URI->new_abs( $href, $base ) );
   }
 
   download( \%media );
@@ -225,7 +231,7 @@ sub fetch_from_bootstrap {
       next unless $seg->{first};
       for my $frag ( @{ $seg->{f} } ) {
         if ( $frag->{duration} == 0 ) {
-          return if $frag->{discontinuity};
+          #          return if $frag->{discontinuity};
           next;
         }
         $cb->( $seg, $frag );
