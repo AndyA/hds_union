@@ -8,7 +8,7 @@ use LWP::UserAgent;
 sub monitor_bootstrap(@);
 
 my @bs = qw(
- http://fmshttpstg.bbc.co.uk.edgesuite-staging.net/hds-live/streams/livepkgr/streams/_definst_/inlet5/inlet5.bootstrap
+ http://192.168.0.132/hds-live/streams/livepkgr/streams/_definst_/livestream2/livestream2.bootstrap
 );
 
 my $next = 1;
@@ -22,7 +22,7 @@ monitor_bootstrap $bs[0],
  sub {
   my $resp = shift;
   if ( $resp->is_success ) {
-    my $fn = sprintf 'bs/bs%05d.bootstrap', $next++;
+    my $fn = sprintf 'bsfenkle/bs%05d.bootstrap', $next++;
     print ">> $fn\n";
     open my $fh, '>', $fn or die "Can't write $fn: $!\n";
     print $fh $resp->content;
@@ -43,6 +43,8 @@ sub back_off {
         h_min            => 1,
       );
     }
+
+    warn $resp->status_line, "\n";
 
     my $ttl = int( $back_off );
     $back_off *= $a{rate};
