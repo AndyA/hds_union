@@ -70,6 +70,7 @@ sub _frag_factory {
   return sub {
     return ( scalar( @frt ), $done ) if @_;
     FRAG: while ( @frt ) {
+      return if $done;
       my $first = $frt[0]{first};
 
       if ( $first > 0 && $first < $idx ) {
