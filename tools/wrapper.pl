@@ -161,11 +161,11 @@ use Data::Dumper;
 use Path::Class;
 use List::Util qw( max );
 
-my $src = shift;
-my $rdr = reader->new( file( $src )->openr );
-walk( $rdr, atom_smasher( my $data = {} ) );
+my $src  = shift;
+my $rdr  = reader->new( file( $src )->openr );
+my $root = walk( $rdr, atom_smasher( my $data = {} ) );
 report( $data );
-print Dumper( $data->{atom} );
+print Dumper( $root );
 
 sub report {
   my $data = shift;
@@ -190,7 +190,7 @@ sub hist {
   printf $fmt, $_, $hist{$_} for @keys;
 }
 
-sub make_dump {
+sub make_dump(&) {
   my $cb = shift;
   return sub {
     my $rdr = shift;
@@ -200,7 +200,7 @@ sub make_dump {
   };
 }
 
-sub full_box {
+sub full_box(&) {
   my $cb = shift;
   return sub {
     my ( $rdr, @a )  = @_;
@@ -215,8 +215,11 @@ sub atom_smasher {
   my $depth = 0;
 
   my $drop = sub { return };
-  my $walk = sub { walk( @_ ); return };
   my $keep = sub { my $rdr = shift; return $rdr };
+  my $walk = sub {
+    my $rdr = shift;
+    return { atoms => walk( $rdr, @_ ), type => $rdr->fourCC };
+  };
 
   my %ATOM = (
     mdia => $walk,
@@ -250,104 +253,94 @@ sub atom_smasher {
     vmhd => $keep,
 
     # non-containers
-    tfhd => full_box(
-      sub {
-        my ( $rdr, $ver, $fl ) = @_;
-        return {
-          ( $fl & 0x000001 ) ? ( base_data_offset         => $rdr->read64 ) : (),
-          ( $fl & 0x000002 ) ? ( sample_description_index => $rdr->read32 ) : (),
-          ( $fl & 0x000008 ) ? ( default_sample_duration  => $rdr->read32 ) : (),
-          ( $fl & 0x000010 ) ? ( default_sample_size      => $rdr->read32 ) : (),
-          ( $fl & 0x000020 ) ? ( default_sample_flags     => $rdr->read32 ) : (),
-        };
+    tfhd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        ( $fl & 0x000001 ) ? ( base_data_offset         => $rdr->read64 ) : (),
+        ( $fl & 0x000002 ) ? ( sample_description_index => $rdr->read32 ) : (),
+        ( $fl & 0x000008 ) ? ( default_sample_duration  => $rdr->read32 ) : (),
+        ( $fl & 0x000010 ) ? ( default_sample_size      => $rdr->read32 ) : (),
+        ( $fl & 0x000020 ) ? ( default_sample_flags     => $rdr->read32 ) : (),
+      };
+    },
+    trun => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      my $sample_count = $rdr->read32;
+      my $trun         = {
+        ( $fl & 0x001 ) ? ( data_offset        => $rdr->read32 ) : (),
+        ( $fl & 0x004 ) ? ( first_sample_flags => $rdr->read32 ) : (),
+        run => [],
+      };
+      for ( 1 .. $sample_count ) {
+        push @{ $trun->{run} },
+         {
+          ( $fl & 0x100 ) ? ( duration    => $rdr->read32 ) : (),
+          ( $fl & 0x200 ) ? ( size        => $rdr->read32 ) : (),
+          ( $fl & 0x400 ) ? ( flags       => $rdr->read32 ) : (),
+          ( $fl & 0x800 ) ? ( time_offset => $rdr->read32 ) : (),
+         };
       }
-    ),
-    trun => full_box(
-      sub {
-        my ( $rdr, $ver, $fl ) = @_;
-        my $sample_count = $rdr->read32;
-        my $trun         = {
-          ( $fl & 0x001 ) ? ( data_offset        => $rdr->read32 ) : (),
-          ( $fl & 0x004 ) ? ( first_sample_flags => $rdr->read32 ) : (),
-          run => [],
-        };
-        for ( 1 .. $sample_count ) {
-          push @{ $trun->{run} },
-           {
-            ( $fl & 0x100 ) ? ( duration    => $rdr->read32 ) : (),
-            ( $fl & 0x200 ) ? ( size        => $rdr->read32 ) : (),
-            ( $fl & 0x400 ) ? ( flags       => $rdr->read32 ) : (),
-            ( $fl & 0x800 ) ? ( time_offset => $rdr->read32 ) : (),
-           };
-        }
-        return $trun;
-      }
-    ),
-    stco => full_box(
-      sub {
-        my $rdr = shift;
-        { offsets => [ map { $rdr->read32 } 1 .. $rdr->read32 ] };
-      }
-    ),
-    co64 => full_box(
-      sub {
-        my $rdr = shift;
-        { offsets => [ map { $rdr->read64 } 1 .. $rdr->read32 ] };
-      }
-    ),
-    ctts => full_box(
-      sub {
-        my $rdr = shift;
-        {
-          offsets => [
-            map { { count => $rdr->read32, offset => $rdr->read32, } } 1 .. $rdr->read32
-          ]
-        };
-      }
-    ),
-    url => full_box(
-      sub {
-        my ( $rdr, $ver, $fl ) = @_;
-        return { flags => $fl, ( $fl & 0x001 ) ? () : ( location => $rdr->readZ ) };
-      }
-    ),
-    urn => full_box(
-      sub {
-        my ( $rdr, $ver, $fl ) = @_;
-        return {
-          name => $rdr->readZ,
-          ( $fl & 0x001 ) ? () : ( location => $rdr->readZ )
-        };
-      }
-    ),
-    dref => full_box(
-      sub {
-        my ( $rdr, $ver, $fl, $smasher ) = @_;
-        { dref => [ map { walk_atom( $rdr, $smasher ) } 1 .. $rdr->read32 ] };
-      }
-    ),
-    elst => full_box(
-      sub {
-        my ( $rdr, $ver, $fl ) = @_;
-        return {
-          list => [
-            map {
-              {
-                ( $ver >= 1 )
-                 ? ( segment_duration => $rdr->read64, media_time => $rdr->read64, )
-                 : ( segment_duration => $rdr->read32, media_time => $rdr->read32, ),
-                 media_rate_integer  => $rdr->read16,
-                 media_rate_fraction => $rdr->read16,
-              }
-             } 1 .. $rdr->read32
-          ]
-        };
-      }
-    ),
-
-    # todo
-    mehd => $drop,
-    trex => $drop,
+      return $trun;
+    },
+    stco => full_box {
+      my $rdr = shift;
+      { offsets => [ map { $rdr->read32 } 1 .. $rdr->read32 ] };
+    },
+    co64 => full_box {
+      my $rdr = shift;
+      { offsets => [ map { $rdr->read64 } 1 .. $rdr->read32 ] };
+    },
+    ctts => full_box {
+      my $rdr = shift;
+      { offsets =>
+         [ map { { count => $rdr->read32, offset => $rdr->read32, } } 1 .. $rdr->read32 ]
+      };
+    },
+    url => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return { flags => $fl, ( $fl & 0x001 ) ? () : ( location => $rdr->readZ ) };
+    },
+    urn => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        name => $rdr->readZ,
+        ( $fl & 0x001 ) ? () : ( location => $rdr->readZ )
+      };
+    },
+    dref => full_box {
+      my ( $rdr, $ver, $fl, $smasher ) = @_;
+      { dref => [ map { walk_atom( $rdr, $smasher ) } 1 .. $rdr->read32 ] };
+    },
+    elst => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      my $rw = $ver >= 1 ? sub { $rdr->read64 } : sub { $rdr->read32 };
+      return {
+        list => [
+          map {
+            {
+              segment_duration    => $rw->(),
+              media_time          => $rw->(),
+              media_rate_integer  => $rdr->read16,
+              media_rate_fraction => $rdr->read16,
+            }
+           } 1 .. $rdr->read32
+        ]
+      };
+    },
+    mehd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return { fragment_duration => ( $ver >= 1 ) ? $rdr->read64 : $rdr->read32 };
+    },
+    trex => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        track_ID                         => $rdr->read32,
+        default_sample_description_index => $rdr->read32,
+        default_sample_duration          => $rdr->read32,
+        default_sample_size              => $rdr->read32,
+        default_sample_flags             => $rdr->read32,
+      };
+    },
 
     # ignore
     abst => $drop,
@@ -367,25 +360,22 @@ sub atom_smasher {
     my ( $rdr, $smasher ) = @_;
     my $pad    = '  ' x $depth;
     my $fourcc = $rdr->fourCC;
-    my @rcs    = ();
     #    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $fourcc;
     if ( my $hdlr = $ATOM{$fourcc} ) {
-      my @rc = $hdlr->( $rdr, $smasher );
-      push @{ $data->{atom}{ $rdr->path } }, @rc;
-      push @{ $data->{flat}{$fourcc} }, @rc;
-      push @rcs, @rc;
+      my $rc = $hdlr->( $rdr, $smasher );
+      push @{ $data->{atom}{ $rdr->path } }, $rc;
+      push @{ $data->{flat}{$fourcc} }, $rc;
+      return $rc;
     }
-    else {
-      $data->{meta}{unhandled}{ escape( scalar $rdr->path ) }++;
-    }
-    return @rcs;
+    $data->{meta}{unhandled}{ escape( scalar $rdr->path ) }++;
+    return;
   };
 
   return sub {
     $depth++;
-    my @rc = $cb->( @_ );
+    my $rc = $cb->( @_ );
     $depth--;
-    return @rc;
+    return $rc;
   };
 }
 
@@ -400,11 +390,11 @@ sub walk_atom {
   my $atom = $rdr->tell;
   my ( $size, $fourcc ) = parse_box( $rdr );
   my $pos = $rdr->tell;
-  my @rc  = $smasher->(
+  my $rc  = $smasher->(
     reader->new( [ $rdr, $fourcc ], $pos, $size - ( $pos - $atom ) ), $smasher
   );
   $rdr->seek( $atom + $size, 0 );
-  return @rc;
+  return $rc;
 }
 
 sub walk {
@@ -413,7 +403,7 @@ sub walk {
   while ( $rdr->avail ) {
     push @rc, walk_atom( $rdr, $smasher );
   }
-  return @rc;
+  return \@rc;
 }
 
 sub parse_full_box {
