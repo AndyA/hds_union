@@ -208,16 +208,6 @@ sub atom_smasher {
   my $walk = \&walk;
   my $keep = sub { my $rdr = shift; return $rdr };
 
-  my $ar32 = sub {
-    my $rdr = shift;
-    [ map { $rdr->read32 } 1 .. $rdr->read32 ];
-  };
-
-  my $ar64 = sub {
-    my $rdr = shift;
-    [ map { $rdr->read64 } 1 .. $rdr->read32 ];
-  };
-
   my %ATOM = (
     mdia => $walk,
     minf => $walk,
@@ -273,12 +263,12 @@ sub atom_smasher {
     stco => sub {
       my $rdr = shift;
       my ( $ver, $fl ) = parse_full_box( $rdr );
-      $ar32->( $rdr );
+      [ map { $rdr->read32 } 1 .. $rdr->read32 ];
     },
     co64 => sub {
       my $rdr = shift;
       my ( $ver, $fl ) = parse_full_box( $rdr );
-      $ar64->( $rdr );
+      [ map { $rdr->read64 } 1 .. $rdr->read32 ];
     },
     ctts => sub {
       my $rdr = shift;
