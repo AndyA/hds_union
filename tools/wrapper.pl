@@ -253,19 +253,17 @@ sub atom_smasher {
     vmhd => $keep,
 
     # non-containers
-    tfhd => 
-      full_box {
-        my ( $rdr, $ver, $fl ) = @_;
-        return {
-          track_ID => $rdr->read32,
-          ( $fl & 0x000001 ) ? ( base_data_offset         => $rdr->read64 ) : (),
-          ( $fl & 0x000002 ) ? ( sample_description_index => $rdr->read32 ) : (),
-          ( $fl & 0x000008 ) ? ( default_sample_duration  => $rdr->read32 ) : (),
-          ( $fl & 0x000010 ) ? ( default_sample_size      => $rdr->read32 ) : (),
-          ( $fl & 0x000020 ) ? ( default_sample_flags     => $rdr->read32 ) : (),
-        };
-      }
-    ,
+    tfhd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        track_ID => $rdr->read32,
+        ( $fl & 0x000001 ) ? ( base_data_offset         => $rdr->read64 ) : (),
+        ( $fl & 0x000002 ) ? ( sample_description_index => $rdr->read32 ) : (),
+        ( $fl & 0x000008 ) ? ( default_sample_duration  => $rdr->read32 ) : (),
+        ( $fl & 0x000010 ) ? ( default_sample_size      => $rdr->read32 ) : (),
+        ( $fl & 0x000020 ) ? ( default_sample_flags     => $rdr->read32 ) : (),
+      };
+    },
     trun => full_box {
       my ( $rdr, $ver, $fl ) = @_;
       my $sample_count = $rdr->read32;
