@@ -15,7 +15,7 @@ BBC::HDS::MP4::IOWriter - do something
 
 sub new {
   my ( $class, $fh ) = @_;
-  return bless { fh => $fh, }, $class;
+  return bless { fh => $fh }, $class;
 }
 
 sub is_null { 0 }
