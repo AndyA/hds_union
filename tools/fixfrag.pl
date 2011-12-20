@@ -39,10 +39,10 @@ sub atom_walk {
 
     if ( $COPY{$fourcc} ) {
       printf "%08x %10d '%s' --> destination\n", $pos, $size, $fourcc;
-#      my $hdr = make_header( $size, $fourcc );
-#      my $put = syswrite $out, $hdr;
-#      die "IO Error: $!" unless defined $put;
-#      die "Short write" if $put < length $hdr;
+      #      my $hdr = make_header( $size, $fourcc );
+      #      my $put = syswrite $out, $hdr;
+      #      die "IO Error: $!" unless defined $put;
+      #      die "Short write" if $put < length $hdr;
       seek $in, $atom, 0;
       copy( $in, $out, $size );
     }
