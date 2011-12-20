@@ -1,9 +1,27 @@
 #!/usr/bin/env perl
 
+package io;
+
+use strict;
+use warnings;
+use Carp qw( croak );
+
+sub _whence_to_pos {
+  my ( $self, $distance, $whence ) = @_;
+  my $base
+   = $whence == 0 ? 0
+   : $whence == 1 ? $self->tell
+   : $whence == 2 ? $self->size
+   :                croak "Bad whence value";
+  return $base + $distance;
+}
+
 package reader;
 
 use strict;
 use warnings;
+
+our @ISA = qw( io );
 
 use Carp qw( croak );
 use Data::Dumper;
@@ -57,15 +75,8 @@ sub fourCC { shift->{path}[-1] }
 
 sub seek {
   my ( $self, $distance, $whence ) = @_;
-
-  my $base
-   = $whence == 0 ? 0
-   : $whence == 1 ? $self->tell
-   : $whence == 2 ? $self->{size}
-   :                croak "Bad whence value";
-
-  my $pos = $distance + $base;
-  croak "Seek out of range" if $pos < 0 || $pos > $self->{size};
+  my $pos = $self->_whence_to_pos( $distance, $whence );
+  croak "Seek out of range" if $pos < 0 || $pos > $self->size;
   $self->{pos} = $pos;
   $self;
 }
@@ -73,6 +84,11 @@ sub seek {
 sub start { shift->{start} }
 sub tell  { shift->{pos} }
 sub size  { shift->{size} }
+
+sub range {
+  my $self = shift;
+  return ( $self->start, $self->start + $self->size );
+}
 
 sub avail {
   my $self = shift;
@@ -86,9 +102,9 @@ sub read {
   my $pos   = $self->{pos} + $self->{start};
   my $avail = $self->{size} - $self->{pos};
 
-  CORE::seek $fh, $pos, 0 or croak "Seek failed: $!\n";
+  sysseek $fh, $pos, 0 or croak "Seek failed: $!\n";
   my $got = sysread $fh, my $data, min( $avail, $len );
-  croak "IO Error: $!" unless defined $got;
+  croak "I/O error: $!" unless defined $got;
   $self->{pos} += $got;
   return $data;
 }
@@ -152,6 +168,113 @@ sub dump {
   return hexdump( $chunk );
 }
 
+package writer;
+
+use strict;
+use warnings;
+
+use Carp qw( croak );
+
+our @ISA = qw( io );
+
+sub new {
+  my ( $class, $fh ) = @_;
+  return bless { fh => $fh, }, $class;
+}
+
+sub is_null { 0 }
+
+sub write {
+  my ( $self, $data ) = @_;
+  my $put = syswrite $self->{fh}, $data;
+  croak "I/O error: $!" unless defined $put;
+  croak "Short write"   unless $put == length $data;
+  $self;
+}
+
+sub write8   { shift->write( pack 'C*', @_ ) }
+sub write16  { shift->write( pack 'n*', @_ ) }
+sub write32  { shift->write( pack 'N*', @_ ) }
+sub write4CC { shift->write( pack 'A4', @_ ) }
+
+sub write24 {
+  my ( $self, @data ) = @_;
+  $self->write( pack 'Cn', ( $_ >> 16 ), $_ ) for @data;
+  $self;
+}
+
+sub write64 {
+  my ( $self, @data ) = @_;
+  $self->write( pack 'NN', ( $_ >> 32 ), $_ ) for @data;
+  $self;
+}
+
+sub writeZ {
+  shift->write( map { "$_\0" } @_ );
+}
+
+sub write8ar {
+  my ( $self, $cb, @data ) = @_;
+  croak "Can't write more than 255 elements"
+   if @data > 255;
+  $self->write8( scalar @data );
+  $cb->( $self, $_ ) for @data;
+  $self;
+}
+
+sub write32ar {
+  my ( $self, $cb, @data ) = @_;
+  $self->write32( scalar @data );
+  $cb->( $self, $_ ) for @data;
+  $self;
+}
+
+sub writeZs {
+  my ( $self, @ar ) = @_;
+  $self->write8ar( sub { shift->writeZ( @_ ) }, @ar );
+}
+
+sub tell {
+  my $pos = sysseek shift->{fh}, 0, 1;
+  croak "Can't tell: $!" unless defined $pos;
+  return $pos;
+}
+
+sub seek {
+  my ( $self, $pos, $whence ) = @_;
+  defined sysseek $self->{fh}, $pos, $whence
+   or croak "Can't seek to $pos ($whence): $!";
+}
+
+package nullwriter;
+
+use strict;
+use warnings;
+use Carp qw( croak );
+
+our @ISA = qw( writer );
+
+sub new { bless { pos => 0, size => 0 }, shift }
+
+sub is_null { 1 }
+
+sub write {
+  my ( $self, $data ) = @_;
+  $self->seek( length $data, 1 );
+  $self;
+}
+
+sub tell { shift->{pos} }
+
+sub seek {
+  my ( $self, $distance, $whence ) = @_;
+  my $pos = $self->_whence_to_pos( $distance, $whence );
+  croak "Seek out of range" if $pos < 0;
+  $self->{size} = $pos if $self->{size} < $pos;
+  $self->{pos} = $pos;
+  $self;
+}
+
 package main;
 
 use strict;
@@ -161,11 +284,24 @@ use Data::Dumper;
 use Path::Class;
 use List::Util qw( max );
 
-my $src  = shift;
+my @CONTAINER = qw(
+ dinf edts mdia minf moof moov
+ mvex stbl traf trak
+);
+
+my $src  = shift @ARGV;
 my $rdr  = reader->new( file( $src )->openr );
 my $root = walk( $rdr, atom_smasher( my $data = {} ) );
 report( $data );
-print Dumper( $root );
+if ( @ARGV ) {
+  my $dst = shift @ARGV;
+  my $wtr = writer->new( file( $dst )->openw );
+  make_file( $wtr, $root );
+}
+else {
+  layout( $root );
+  print Dumper( $root );
+}
 
 sub report {
   my $data = shift;
@@ -189,6 +325,14 @@ sub hist {
   print "$title:\n";
   printf $fmt, $_, $hist{$_} for @keys;
 }
+
+sub escape {
+  ( my $src = shift ) =~ s/ ( [ \x00-\x20 \x7f-\xff ] ) /
+                            '\\x' . sprintf '%02x', ord $1 /exg;
+  return $src;
+}
+
+### READING ###
 
 sub make_dump {
   my $cb = shift;
@@ -215,25 +359,30 @@ sub atom_smasher {
   my $depth = 0;
 
   my $drop = sub { return };
-  my $keep = sub { my $rdr = shift; return $rdr };
+
+  my $keep = sub {
+    my $rdr = shift;
+    return { reader => $rdr, type => $rdr->fourCC };
+  };
+
   my $walk = sub {
     my $rdr = shift;
     return { boxes => walk( $rdr, @_ ), type => $rdr->fourCC };
   };
 
-  my %ATOM = (
-    mdia => $walk,
-    minf => $walk,
-    moov => $walk,
-    stbl => $walk,
-    trak => $walk,
+  my %BOX = (
+    #    mdia => $walk,
+    #    minf => $walk,
+    #    moov => $walk,
+    #    stbl => $walk,
+    #    trak => $walk,
 
     # moof specific
-    dinf => $walk,
-    edts => $walk,
-    moof => $walk,
-    mvex => $walk,
-    traf => $walk,
+    #    dinf => $walk,
+    #    edts => $walk,
+    #    moof => $walk,
+    #    mvex => $walk,
+    #    traf => $walk,
 
     # bits we want to remember
     ftyp => $keep,
@@ -357,15 +506,17 @@ sub atom_smasher {
     stts => $drop,
   );
 
+  $BOX{$_} = $walk for @CONTAINER;
+
   my $cb = sub {
     my ( $rdr, $smasher ) = @_;
-    my $pad    = '  ' x $depth;
-    my $fourcc = $rdr->fourCC;
-    #    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $fourcc;
-    if ( my $hdlr = $ATOM{$fourcc} ) {
+    my $pad  = '  ' x $depth;
+    my $type = $rdr->fourCC;
+    #    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
+    if ( my $hdlr = $BOX{$type} ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
-      push @{ $data->{flat}{$fourcc} }, $rc;
+      push @{ $data->{flat}{$type} }, $rc;
       return $rc;
     }
     $data->{meta}{unhandled}{ escape( scalar $rdr->path ) }++;
@@ -380,18 +531,28 @@ sub atom_smasher {
   };
 }
 
-sub escape {
-  ( my $src = shift ) =~ s/ ( [ \x00-\x20 \x7f-\xff ] ) /
-                            '\\x' . sprintf '%02x', ord $1 /exg;
-  return $src;
+sub parse_full_box {
+  my $rdr = shift;
+  return ( $rdr->read8, $rdr->read24 );
+}
+
+sub parse_box {
+  my $rdr = shift;
+
+  my ( $size, $type ) = ( $rdr->read32, $rdr->read4CC );
+  $type =~ s/\s+$//;
+  $size = $rdr->read64 if $size == 1;
+  $size = $rdr->size   if $size == 0;
+
+  return ( $size, $type );
 }
 
 sub walk_box {
   my ( $rdr, $smasher ) = @_;
   my $box = $rdr->tell;
-  my ( $size, $fourcc ) = parse_box( $rdr );
+  my ( $size, $type ) = parse_box( $rdr );
   my $pos = $rdr->tell;
-  my $rc = $smasher->( reader->new( [ $rdr, $fourcc ], $pos, $size - ( $pos - $box ) ),
+  my $rc = $smasher->( reader->new( [ $rdr, $type ], $pos, $size - ( $pos - $box ) ),
     $smasher );
   $rdr->seek( $box + $size, 0 );
   return $rc;
@@ -406,21 +567,152 @@ sub walk {
   return \@rc;
 }
 
-sub parse_full_box {
-  my $rdr = shift;
-  return ( $rdr->read8, $rdr->read24 );
+### WRITING ###
+
+sub push_box {
+  my ( $wtr, $box, $long, $cb ) = @_;
+
+  my $pos = $wtr->tell;
+
+  $wtr->write32( 1 );
+  $wtr->write4CC( $box->{type} );
+
+  $wtr->write64( 1 ) if $long;
+
+  $box->{_}{start} = $wtr->tell;
+  $cb->( $wtr, $box );
+  $box->{_}{end} = my $end = $wtr->tell;
+
+  if ( $long ) {
+    $wtr->seek( $pos + 8, 0 );
+    $wtr->write64( $end - $pos );
+  }
+  else {
+    $wtr->seek( $pos, 0 );
+    $wtr->write32( $end - $pos );
+  }
+
+  $wtr->seek( $end, 0 );
+  return;
 }
 
-sub parse_box {
-  my $rdr = shift;
+sub push_full(&) {
+  my $cb = shift;
+  return sub {
+    my ( $wtr, $box, @a ) = @_;
+    $wtr->write8( $box->{version} );
+    $wtr->write24( $box->{flags} );
+    return $cb->( $wtr, $box, @a );
+  };
+}
 
-  my ( $size, $fourcc ) = ( $rdr->read32, $rdr->read4CC );
-  $fourcc =~ s/\s+$//;
-  $size = $rdr->read64 if $size == 1;
-  $size = $rdr->size   if $size == 0;
+sub write_boxes {
+  my ( $wtr, $pusher, $boxes ) = @_;
+  for my $box ( @$boxes ) {
+    next unless defined $box;
+    $pusher->( $wtr, $pusher, $box );
+  }
+}
 
-  return ( $size, $fourcc );
+sub layout {
+  my ( $root ) = @_;
+  write_boxes( nullwriter->new, box_pusher( sub { @_ } ), $root );
+}
 
+sub reloc_index {
+  my $boxes = shift;
+  my @idx   = @_;
+  for my $box ( @$boxes ) {
+    next unless $box;
+    if ( my $cont = $box->{boxes} ) {
+      push @idx, reloc_index( $box->{boxes} );
+    }
+    elsif ( my $rdr = $box->{reader} ) {
+      my ( $sst, $sen ) = $rdr->range;
+      my ( $dst, $den ) = ( $box->{_}{start}, $box->{_}{end} );
+      my $ssz = $sen - $sst;
+      my $dsz = $den - $dst;
+      die "Source / destination size mismatch: $ssz / $dsz" unless $ssz == $dsz;
+      push @idx, [ $sst, $sen, $dst - $sst ];
+    }
+  }
+  return @idx;
+}
+
+sub make_relocator {
+  my $boxes = shift;
+
+  my @idx = sort { $a->[0] <=> $b->[0] } reloc_index( $boxes );
+
+  print Dumper( \@idx );
+
+  my $reloc1 = sub {
+    my ( $lo, $hi ) = ( 0, scalar @idx );
+    while ( $lo < $hi ) {
+    }
+  };
+
+  return sub {
+    map { $reloc1->( @_ ) };
+  };
+}
+
+sub make_file {
+  my ( $wtr, $boxes ) = @_;
+  layout( $boxes );
+  write_boxes( $wtr, box_pusher( make_relocator( $boxes ) ), $boxes );
+}
+
+sub box_pusher {
+  my $reloc = shift;
+
+  my $copy = sub {
+    my ( $wtr, $pusher, $box, $long ) = @_;
+    my $rdr = $box->{reader} || die;
+    my $type = $rdr->fourCC;
+    $long ||= $rdr->size > 0xffff0000;
+    push_box(
+      $wtr, $box, $long,
+      sub {
+        if ( $wtr->is_null ) {
+          $wtr->seek( $rdr->size, 1 );
+          return;
+        }
+        while ( 1 ) {
+          my $data = $rdr->read( 65536 );
+          last unless length $data;
+          $wtr->write( $data );
+        }
+      }
+    );
+  };
+
+  my $container = sub {
+    my ( $wtr, $pusher, $box, $long ) = @_;
+    push_box( $wtr, $box, $long, sub { write_boxes( $wtr, $pusher, $box->{boxes} ) } );
+  };
+
+  my %IS_LONG = map { $_ => 1 } qw( mdat );
+
+  my %BOX = ();
+
+  $BOX{$_} = $container for @CONTAINER;
+
+  return sub {
+    my ( $wtr, $pusher, $box ) = @_;
+
+    my $type = $box->{type};
+    print Dumper( $box )   unless defined $type;
+    Carp::confess "Fucked" unless keys %$box;
+    my $long = $IS_LONG{$type} || 0;
+
+    # HACK
+    $BOX{$type} = $copy if $box->{reader};
+
+    if ( my $hdlr = $BOX{$type} ) {
+      return $hdlr->( $wtr, $pusher, $box, $long );
+    }
+  };
 }
 
 # vim:ts=2:sw=2:sts=2:et:ft=perl
