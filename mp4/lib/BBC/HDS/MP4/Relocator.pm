@@ -12,11 +12,27 @@ BBC::HDS::MP4::Relocator - Relocate references to data that's moved
 =cut
 
 sub new {
-  my ( $class, @reloc ) = @_;
-  return bless { reloc => [ sort { $a->[0] <=> $b->[0] } @reloc ] }, $class;
+  my $class = shift;
+  my @rel = sort { $a->[0] <=> $b->[0] } @_;
+  $class->_check( \@rel );
+  return bless { reloc => \@rel }, $class;
+}
+
+sub _check {
+  my ( $class, $rel ) = @_;
+  for my $i ( 1 .. $#$rel ) {
+    croak "Overlap in relocation list"
+     if $rel->[ $i - 1 ][1] > $rel->[$i][0];
+  }
 }
 
 sub reloc {
+  my ( $self, @src ) = @_;
+  return map { $self->_reloc( $_ ) } @src if wantarray;
+  return $self->_reloc( @src );
+}
+
+sub _reloc {
   my ( $self, $src ) = @_;
 
   my $r = $self->{reloc};

@@ -21,7 +21,8 @@ sub new {
 sub is_null { 0 }
 
 sub write {
-  my ( $self, $data ) = @_;
+  my ( $self, @data ) = @_;
+  my $data = join '', @data;
   my $put = syswrite $self->{fh}, $data;
   croak "I/O error: $!" unless defined $put;
   croak "Short write"   unless $put == length $data;

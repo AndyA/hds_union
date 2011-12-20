@@ -9,9 +9,10 @@ use List::Util qw( max );
 
 use lib qw( lib );
 
+use BBC::HDS::MP4::IONullWriter;
 use BBC::HDS::MP4::IOReader;
 use BBC::HDS::MP4::IOWriter;
-use BBC::HDS::MP4::IONullWriter;
+use BBC::HDS::MP4::Relocator;
 
 my @CONTAINER = qw(
  dinf edts mdia minf moof moov
@@ -100,19 +101,6 @@ sub atom_smasher {
   };
 
   my %BOX = (
-    #    mdia => $walk,
-    #    minf => $walk,
-    #    moov => $walk,
-    #    stbl => $walk,
-    #    trak => $walk,
-
-    # moof specific
-    #    dinf => $walk,
-    #    edts => $walk,
-    #    moof => $walk,
-    #    mvex => $walk,
-    #    traf => $walk,
-
     # bits we want to remember
     ftyp => $keep,
     mvhd => $keep,
@@ -222,17 +210,17 @@ sub atom_smasher {
     },
 
     # ignore
-    abst => $drop,
-    afra => $drop,
-    mfhd => $drop,
-    free => $drop,
+    abst => $keep,
+    afra => $keep,
+    mfhd => $keep,
+    free => $keep,
 
     # unknown
-    stsc => $drop,
-    stsd => $drop,
-    stss => $drop,
-    stsz => $drop,
-    stts => $drop,
+    stsc => $keep,
+    stsd => $keep,
+    stss => $keep,
+    stsz => $keep,
+    stts => $keep,
   );
 
   $BOX{$_} = $walk for @CONTAINER;
@@ -301,7 +289,7 @@ sub walk {
 ### WRITING ###
 
 sub push_box {
-  my ( $wtr, $box, $long, $cb ) = @_;
+  my ( $wtr, $pusher, $box, $long, $cb ) = @_;
 
   my $pos = $wtr->tell;
 
@@ -311,7 +299,7 @@ sub push_box {
   $wtr->write64( 1 ) if $long;
 
   $box->{_}{start} = $wtr->tell;
-  $cb->( $wtr, $box );
+  $cb->( $wtr, $pusher, $box );
   $box->{_}{end} = my $end = $wtr->tell;
 
   if ( $long ) {
@@ -330,10 +318,10 @@ sub push_box {
 sub push_full(&) {
   my $cb = shift;
   return sub {
-    my ( $wtr, $box, @a ) = @_;
+    my ( $wtr, $pusher, $box, @a ) = @_;
     $wtr->write8( $box->{version} );
     $wtr->write24( $box->{flags} );
-    return $cb->( $wtr, $box, @a );
+    return $cb->( $wtr, $pusher, $box, @a );
   };
 }
 
@@ -347,12 +335,14 @@ sub write_boxes {
 
 sub layout {
   my ( $root ) = @_;
-  write_boxes( BBC::HDS::MP4::IONullWriter->new, box_pusher( sub { @_ } ), $root );
+  write_boxes( BBC::HDS::MP4::IONullWriter->new,
+    box_pusher( BBC::HDS::MP4::Relocator->new ), $root );
 }
 
 sub reloc_index {
   my $boxes = shift;
   my @idx   = @_;
+
   for my $box ( @$boxes ) {
     next unless $box;
     if ( my $cont = $box->{boxes} ) {
@@ -367,65 +357,144 @@ sub reloc_index {
       push @idx, [ $sst, $sen, $dst - $sst ];
     }
   }
+
   return @idx;
-}
-
-sub make_relocator {
-  my $boxes = shift;
-
-  my @idx = sort { $a->[0] <=> $b->[0] } reloc_index( $boxes );
-
-  print Dumper( \@idx );
-
-  my $reloc1 = sub {
-    my ( $lo, $hi ) = ( 0, scalar @idx );
-    while ( $lo < $hi ) {
-    }
-  };
-
-  return sub {
-    map { $reloc1->( $_ ) } @_;
-  };
 }
 
 sub make_file {
   my ( $wtr, $boxes ) = @_;
   layout( $boxes );
-  write_boxes( $wtr, box_pusher( make_relocator( $boxes ) ), $boxes );
+  write_boxes( $wtr, box_pusher( BBC::HDS::MP4::Relocator->new( reloc_index( $boxes ) ) ),
+    $boxes );
 }
 
 sub box_pusher {
   my $reloc = shift;
 
   my $copy = sub {
-    my ( $wtr, $pusher, $box, $long ) = @_;
-    my $rdr = $box->{reader} || die;
-    my $type = $rdr->fourCC;
-    $long ||= $rdr->size > 0xffff0000;
-    push_box(
-      $wtr, $box, $long,
-      sub {
-        if ( $wtr->is_null ) {
-          $wtr->seek( $rdr->size, 1 );
-          return;
-        }
-        while ( 1 ) {
-          my $data = $rdr->read( 65536 );
-          last unless length $data;
-          $wtr->write( $data );
-        }
-      }
-    );
+    my ( $wtr, $pusher, $box ) = @_;
+
+    my $rdr = $box->{reader};
+    if ( $wtr->is_null ) {
+      $wtr->seek( $rdr->size, 1 );
+      return;
+    }
+    $rdr->seek( 0, 0 );
+    while ( 1 ) {
+      my $data = $rdr->read( 65536 );
+      last unless length $data;
+      $wtr->write( $data );
+    }
   };
 
   my $container = sub {
-    my ( $wtr, $pusher, $box, $long ) = @_;
-    push_box( $wtr, $box, $long, sub { write_boxes( $wtr, $pusher, $box->{boxes} ) } );
+    my ( $wtr, $pusher, $box ) = @_;
+    write_boxes( $wtr, $pusher, $box->{boxes} );
   };
 
   my %IS_LONG = map { $_ => 1 } qw( mdat );
 
-  my %BOX = ();
+  my %BOX = (
+    # non-containers
+    tfhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $fl = $box->{flags};
+
+      $wtr->write32( $box->{track_ID} );
+      $wtr->write64( $box->{base_data_offset}         || 0 ) if $fl & 0x000001;
+      $wtr->write32( $box->{sample_description_index} || 0 ) if $fl & 0x000002;
+      $wtr->write32( $box->{default_sample_duration}  || 0 ) if $fl & 0x000008;
+      $wtr->write32( $box->{default_sample_size}      || 0 ) if $fl & 0x000010;
+      $wtr->write32( $box->{default_sample_flags}     || 0 ) if $fl & 0x000020;
+    },
+    trun => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+
+      my $fl = $box->{flags};
+      my @r  = $box->{run};
+
+      $wtr->write32( scalar @r );
+
+      $wtr->write32( $box->{data_offset}        || 0 ) if $fl & 0x001;
+      $wtr->write32( $box->{first_sample_flags} || 0 ) if $fl & 0x004;
+
+      for my $r ( @r ) {
+        $wtr->write32( $box->{duration}    || 0 ) if $fl & 0x100;
+        $wtr->write32( $box->{size}        || 0 ) if $fl & 0x200;
+        $wtr->write32( $box->{flags}       || 0 ) if $fl & 0x400;
+        $wtr->write32( $box->{time_offset} || 0 ) if $fl & 0x800;
+      }
+    },
+    stco => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ofs = $reloc->reloc( @{ $box->{offsets} } );
+      $wtr->write32( scalar( @ofs ), @ofs );
+    },
+    co64 => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ofs = $reloc->reloc( @{ $box->{offsets} } );
+      $wtr->write32( scalar @ofs );
+      $wtr->write64( @ofs );
+    },
+    ctts => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ofs = @{ $box->{offsets} };
+      $wtr->write32( scalar @ofs );
+      $wtr->write32( $_->{count}, $_->{offset} ) for @ofs;
+    },
+    url => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $fl = $box->{flags};
+      $wtr->writeZ( $box->{location} ) if !( $fl & 0x001 );
+    },
+    urn => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $fl = $box->{flags};
+      $wtr->writeZ( $box->{name} );
+      $wtr->writeZ( $box->{location} ) if !( $fl & 0x001 );
+    },
+    dref => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32( scalar @{ $box->{dref} } );
+      write_boxes( $wtr, $pusher, $box->{dref} );
+    },
+    elst => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $ver  = $box->{version};
+      my @list = @{ $box->{list} };
+      my $ww   = $ver >= 1 ? sub { $rdr->read64 } : sub { $rdr->read32 };
+      for my $l ( @list ) {
+        if ( $ver > 1 ) {
+          $wtr->write64( $box->{segment_duration} || 0, $box->{media_time} || 0 );
+        }
+        else {
+          $wtr->write32( $box->{segment_duration} || 0, $box->{media_time} || 0 );
+        }
+        $wtr->write16( $box->{media_rate_integer} || 0,
+          $box->{media_rate_fraction} || 0 );
+      }
+    },
+    mehd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $ver = $box->{version};
+      if ( $ver > 1 ) {
+        $wtr->write64( $box->{fragment_duration} || 0 );
+      }
+      else {
+        $wtr->write32( $box->{fragment_duration} || 0 );
+      }
+    },
+    trex => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32(
+        @{$box}{
+          'track_ID',                'default_sample_description_index',
+          'default_sample_duration', 'default_sample_size',
+          'default_sample_flags',
+         }
+      );
+    },
+  );
 
   $BOX{$_} = $container for @CONTAINER;
 
@@ -441,7 +510,7 @@ sub box_pusher {
     $BOX{$type} = $copy if $box->{reader};
 
     if ( my $hdlr = $BOX{$type} ) {
-      return $hdlr->( $wtr, $pusher, $box, $long );
+      push_box( $wtr, $pusher, $box, $long, $hdlr );
     }
   };
 }

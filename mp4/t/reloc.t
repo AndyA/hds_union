@@ -6,9 +6,17 @@ use warnings;
 use BBC::HDS::MP4::Relocator;
 use Data::Dumper;
 
-use Test::More tests => 10_000;
+use constant MAX => 10_000;
 
-test_reloc( infiberator( 0, 1, 1 ), 10_000 );
+use Test::More tests => MAX + 2;
+
+{
+  my @ooo = ( [ 100, 200, 0 ], [ 300, 400, -1 ], [ 150, 350, 1 ] );
+  eval { BBC::HDS::MP4::Relocator->new( @ooo ) };
+  ok $@, 'out of order -> error';
+}
+
+test_reloc( infiberator( 0, 1, 1 ), MAX );
 
 sub test_reloc {
   my ( $iter, $max ) = @_;
@@ -39,6 +47,10 @@ sub test_reloc {
     my $got = $r->reloc( $d->[0] );
     is $got, $d->[1], "$d->[0] --> $d->[1]";
   }
+  my @from = map { $_->[0] } @ref;
+  my @to   = map { $_->[1] } @ref;
+  my @got  = $r->reloc( @from );
+  is_deeply \@got, \@to, "multiple";
 }
 
 sub infiberator {
