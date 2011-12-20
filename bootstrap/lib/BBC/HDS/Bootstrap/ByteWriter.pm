@@ -16,8 +16,8 @@ sub new { bless { d => [] }, shift }
 sub data { join '', @{ shift->{d} } }
 
 sub write {
-  my ( $self, $data ) = @_;
-  push @{ $self->{d} }, $data;
+  my ( $self, @data ) = @_;
+  push @{ $self->{d} }, @data;
   $self;
 }
 
