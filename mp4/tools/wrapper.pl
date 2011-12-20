@@ -462,16 +462,11 @@ sub box_pusher {
       my ( $wtr, $pusher, $box ) = @_;
       my $ver  = $box->{version};
       my @list = @{ $box->{list} };
-      my $ww   = $ver >= 1 ? sub { $rdr->read64 } : sub { $rdr->read32 };
+      $wtr->write32( scalar @list );
       for my $l ( @list ) {
-        if ( $ver > 1 ) {
-          $wtr->write64( $box->{segment_duration} || 0, $box->{media_time} || 0 );
-        }
-        else {
-          $wtr->write32( $box->{segment_duration} || 0, $box->{media_time} || 0 );
-        }
-        $wtr->write16( $box->{media_rate_integer} || 0,
-          $box->{media_rate_fraction} || 0 );
+        $wtr->write64( $l->{segment_duration}, $l->{media_time} ) if $ver > 1;
+        $wtr->write32( $l->{segment_duration}, $l->{media_time} ) if $ver <= 1;
+        $wtr->write16( $l->{media_rate_integer}, $l->{media_rate_fraction} );
       }
     },
     mehd => push_full {
@@ -502,11 +497,9 @@ sub box_pusher {
     my ( $wtr, $pusher, $box ) = @_;
 
     my $type = $box->{type};
-    print Dumper( $box )   unless defined $type;
-    Carp::confess "Fucked" unless keys %$box;
-    my $long = $IS_LONG{$type} || 0;
 
     # HACK
+    my $long = 0;    #$IS_LONG{$type} || 0;
     $BOX{$type} = $copy if $box->{reader};
 
     if ( my $hdlr = $BOX{$type} ) {
