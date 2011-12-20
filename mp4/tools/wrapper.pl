@@ -26,7 +26,7 @@ report( $data );
 if ( @ARGV ) {
   my $dst = shift @ARGV;
   my $wtr = BBC::HDS::MP4::IOWriter->new( file( $dst )->openw );
-  make_file( $wtr, $root );
+  make_file( $wtr, reorg( $root ) );
 }
 else {
   layout( $root );
@@ -213,7 +213,7 @@ sub atom_smasher {
     abst => $keep,
     afra => $keep,
     mfhd => $keep,
-    free => $keep,
+    #    free => $keep,
 
     # unknown
     stsc => $keep,
@@ -229,7 +229,7 @@ sub atom_smasher {
     my ( $rdr, $smasher ) = @_;
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
-    #    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
+    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
     if ( my $hdlr = $BOX{$type} ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
@@ -506,6 +506,21 @@ sub box_pusher {
       push_box( $wtr, $pusher, $box, $long, $hdlr );
     }
   };
+}
+
+sub reorg {
+  my $root = shift;
+  my ( @last, @first );
+  for my $box ( @$root ) {
+    next unless defined $box;
+    if ( $box->{type} eq 'mdat' ) {
+      push @last, $box;
+    }
+    else {
+      push @first, $box;
+    }
+  }
+  return [ @first, @last ];
 }
 
 # vim:ts=2:sw=2:sts=2:et:ft=perl
