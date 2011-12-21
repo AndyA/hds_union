@@ -84,6 +84,8 @@ sub full_box(&) {
   };
 }
 
+sub void { return }
+
 sub atom_smasher {
   my $data  = shift;
   my $depth = 0;
@@ -106,7 +108,6 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    tkhd => $keep,
     mdhd => $keep,
 
     hdlr => $keep,
@@ -135,16 +136,34 @@ sub atom_smasher {
     skip => $empty,
 
     # non-containers
+    tkhd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        creation_time     => $rdr->readV( $ver >= 1 ),
+        modification_time => $rdr->readV( $ver >= 1 ),
+        track_ID          => $rdr->read32,
+        _1                => $rdr->read32,
+        duration          => $rdr->readV( $ver >= 1 ),
+        _2                => [ $rdr->read32, $rdr->read32 ],
+        layer             => $rdr->read16,
+        alternate_group   => $rdr->read16,
+        volume            => $rdr->read16,
+        _3                => $rdr->read16,
+        matrix            => [ map { $rdr->read32 } 1 .. 9 ],
+        width             => $rdr->read32,
+        height            => $rdr->read32,
+      };
+    },
     mvhd => full_box {
       my ( $rdr, $ver, $fl ) = @_;
-      my $mvhd = {
+      return {
         creation_time     => $rdr->readV( $ver >= 1 ),
         modification_time => $rdr->readV( $ver >= 1 ),
         timescale         => $rdr->read32,
         duration          => $rdr->readV( $ver >= 1 ),
         rate              => $rdr->read32,
         volume            => $rdr->read16,
-        reserved          => [ $rdr->read16, $rdr->read32, $rdr->read32 ],
+        _1                => [ $rdr->read16, $rdr->read32, $rdr->read32 ],
         matrix        => [ map { $rdr->read32 } 1 .. 9 ],
         pre_defined   => [ map { $rdr->read32 } 1 .. 6 ],
         next_track_ID => $rdr->read32,
@@ -428,6 +447,18 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    tkhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $ver = $box->{version};
+
+      $wtr->writeV( $ver >= 1, @{$box}{ 'creation_time', 'modification_time' } );
+      $wtr->write32( $box->{track_ID}, 0 );
+      $wtr->writeV( $ver >= 1, $box->{duration} );
+      $wtr->write32( 0, 0 );
+      $wtr->write16( @{$box}{ 'layer', 'alternate_group', 'volume' }, 0 );
+      $wtr->write16( $box->{alternate_group} );
+      $wtr->write32( @{ $box->{matrix} }, $box->{width}, $box->{height}, );
+    },
     mvhd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my $ver = $box->{version};
@@ -517,20 +548,14 @@ sub box_pusher {
       my @list = @{ $box->{list} };
       $wtr->write32( scalar @list );
       for my $l ( @list ) {
-        $wtr->write64( $l->{segment_duration}, $l->{media_time} ) if $ver > 1;
-        $wtr->write32( $l->{segment_duration}, $l->{media_time} ) if $ver <= 1;
+        $wtr->writeV( $ver >= 1, $l->{segment_duration}, $l->{media_time} );
         $wtr->write16( $l->{media_rate_integer}, $l->{media_rate_fraction} );
       }
     },
     mehd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my $ver = $box->{version};
-      if ( $ver > 1 ) {
-        $wtr->write64( $box->{fragment_duration} || 0 );
-      }
-      else {
-        $wtr->write32( $box->{fragment_duration} || 0 );
-      }
+      $wtr->writeV( $ver >= 1, $box->{fragment_duration} || 0 );
     },
     trex => push_full {
       my ( $wtr, $pusher, $box ) = @_;
