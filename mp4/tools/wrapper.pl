@@ -213,7 +213,7 @@ sub atom_smasher {
     abst => $keep,
     afra => $keep,
     mfhd => $keep,
-    #    free => $keep,
+    free => $drop,
 
     # unknown
     stsc => $keep,
