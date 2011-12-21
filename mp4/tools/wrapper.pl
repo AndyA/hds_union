@@ -108,8 +108,6 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    mdhd => $keep,
-
     hdlr => $keep,
     udta => $keep,
     tref => $keep,
@@ -136,6 +134,17 @@ sub atom_smasher {
     skip => $empty,
 
     # non-containers
+    mdhd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        creation_time     => $rdr->readV( $ver >= 1 ),
+        modification_time => $rdr->readV( $ver >= 1 ),
+        timescale         => $rdr->read32,
+        duration          => $rdr->readV( $ver >= 1 ),
+        language          => $rdr->read16,
+        pre_defined       => $rdr->read16,
+      };
+    },
     tkhd => full_box {
       my ( $rdr, $ver, $fl ) = @_;
       return {
@@ -447,6 +456,14 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    mdhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $ver = $box->{version};
+      $wtr->writeV( $ver >= 1, @{$box}{ 'creation_time', 'modification_time' } );
+      $wtr->write32( $box->{timescale} );
+      $wtr->writeV( $ver >= 1, $box->{duration} );
+      $wtr->write16( @{$box}{ 'language', 'pre_defined', } );
+    },
     tkhd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my $ver = $box->{version};
