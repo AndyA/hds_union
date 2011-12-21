@@ -102,11 +102,14 @@ sub atom_smasher {
 
   my %BOX = (
     # bits we want to remember
+    mdat => $keep,
+
+    # bits we want to decode
     ftyp => $keep,
+
     mvhd => $keep,
     tkhd => $keep,
     mdhd => $keep,
-    mdat => $keep,
 
     hdlr => $keep,
     udta => $keep,
@@ -119,6 +122,16 @@ sub atom_smasher {
     vmhd => $keep,
 
     # non-containers
+    ftyp => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      my $ftyp = {
+        major_brand       => $rdr->read32,
+        minor_version     => $rdr->read32,
+        compatible_brands => [],
+      };
+      push @{ $ftyp->{compatible_brands} }, $rdr->read32 while $rdr->avail;
+      return $ftyp;
+    },
     tfhd => full_box {
       my ( $rdr, $ver, $fl ) = @_;
       return {
@@ -396,6 +409,11 @@ sub box_pusher {
 
   my %BOX = (
     # non-containers
+    ftyp => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32( @{$box}{ 'major_brand', 'minor_version' },
+        @{ $box->{compatible_brands} } );
+    },
     tfhd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my $fl = $box->{flags};
@@ -498,8 +516,9 @@ sub box_pusher {
 
     my $type = $box->{type};
 
+    my $long = $IS_LONG{$type} || 0;
+
     # HACK
-    my $long = 0;    #$IS_LONG{$type} || 0;
     $BOX{$type} = $copy if $box->{reader};
 
     if ( my $hdlr = $BOX{$type} ) {
