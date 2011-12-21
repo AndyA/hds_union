@@ -100,12 +100,11 @@ sub atom_smasher {
     return { boxes => walk( $rdr, @_ ), type => $rdr->fourCC };
   };
 
+  my $empty = sub { { type => shift->fourCC } };
+
   my %BOX = (
     # bits we want to remember
     mdat => $keep,
-
-    # bits we want to decode
-    ftyp => $keep,
 
     mvhd => $keep,
     tkhd => $keep,
@@ -120,6 +119,21 @@ sub atom_smasher {
     nmhd => $keep,
     smhd => $keep,
     vmhd => $keep,
+
+    # ignore
+    abst => $keep,
+    afra => $keep,
+    mfhd => $keep,
+
+    # unknown
+    stsc => $keep,
+    stsd => $keep,
+    stss => $keep,
+    stsz => $keep,
+    stts => $keep,
+
+    free => $empty,
+    skip => $empty,
 
     # non-containers
     ftyp => full_box {
@@ -222,18 +236,6 @@ sub atom_smasher {
       };
     },
 
-    # ignore
-    abst => $keep,
-    afra => $keep,
-    mfhd => $keep,
-    free => $drop,
-
-    # unknown
-    stsc => $keep,
-    stsd => $keep,
-    stss => $keep,
-    stsz => $keep,
-    stts => $keep,
   );
 
   $BOX{$_} = $walk for @CONTAINER;
@@ -405,10 +407,14 @@ sub box_pusher {
     write_boxes( $wtr, $pusher, $box->{boxes} );
   };
 
+  my $nop = sub { };
+
   my %IS_LONG = map { $_ => 1 } qw( mdat );
 
   my %BOX = (
     # non-containers
+    free => $nop,
+    skip => $nop,
     ftyp => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       $wtr->write32( @{$box}{ 'major_brand', 'minor_version' },
@@ -515,7 +521,6 @@ sub box_pusher {
     my ( $wtr, $pusher, $box ) = @_;
 
     my $type = $box->{type};
-
     my $long = $IS_LONG{$type} || 0;
 
     # HACK
