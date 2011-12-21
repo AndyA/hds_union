@@ -71,6 +71,11 @@ sub writeZs {
   $self->write8ar( sub { shift->writeZ( @_ ) }, @ar );
 }
 
+sub writeV {
+  my ( $self, $long, @ar ) = @_;
+  return $long ? $self->write64( @ar ) : $self->write32( @ar );
+}
+
 sub tell {
   my $pos = sysseek shift->{fh}, 0, 1;
   croak "Can't tell: $!" unless defined $pos;

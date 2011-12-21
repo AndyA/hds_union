@@ -146,6 +146,11 @@ sub read32ar {
 
 sub readZs { shift->read8ar( \&readZ ) }
 
+sub readV {
+  my ( $self, $long ) = @_;
+  return $long ? $self->read64 : $self->read32;
+}
+
 sub dump {
   my ( $self, $len ) = @_;
   $len = 256 unless defined $len;

@@ -106,7 +106,6 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    mvhd => $keep,
     tkhd => $keep,
     mdhd => $keep,
 
@@ -136,6 +135,21 @@ sub atom_smasher {
     skip => $empty,
 
     # non-containers
+    mvhd => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      my $mvhd = {
+        creation_time     => $rdr->readV( $ver >= 1 ),
+        modification_time => $rdr->readV( $ver >= 1 ),
+        timescale         => $rdr->read32,
+        duration          => $rdr->readV( $ver >= 1 ),
+        rate              => $rdr->read32,
+        volume            => $rdr->read16,
+        reserved          => [ $rdr->read16, $rdr->read32, $rdr->read32 ],
+        matrix        => [ map { $rdr->read32 } 1 .. 9 ],
+        pre_defined   => [ map { $rdr->read32 } 1 .. 6 ],
+        next_track_ID => $rdr->read32,
+      };
+    },
     ftyp => full_box {
       my ( $rdr, $ver, $fl ) = @_;
       my $ftyp = {
@@ -207,13 +221,12 @@ sub atom_smasher {
     },
     elst => full_box {
       my ( $rdr, $ver, $fl ) = @_;
-      my $rw = $ver >= 1 ? sub { $rdr->read64 } : sub { $rdr->read32 };
       return {
         list => [
           map {
             {
-              segment_duration    => $rw->(),
-              media_time          => $rw->(),
+              segment_duration    => $rdr->readV( $ver >= 1 ),
+              media_time          => $rdr->readV( $ver >= 1 ),
               media_rate_integer  => $rdr->read16,
               media_rate_fraction => $rdr->read16,
             }
@@ -223,7 +236,7 @@ sub atom_smasher {
     },
     mehd => full_box {
       my ( $rdr, $ver, $fl ) = @_;
-      return { fragment_duration => ( $ver >= 1 ) ? $rdr->read64 : $rdr->read32 };
+      return { fragment_duration => $rdr->readV( $ver >= 1 ) };
     },
     trex => full_box {
       my ( $rdr, $ver, $fl ) = @_;
@@ -415,6 +428,22 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    mvhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my $ver = $box->{version};
+      $wtr->writeV( $ver >= 1, @{$box}{ 'creation_time', 'modification_time' } );
+      $wtr->write32( $box->{timescale} );
+      $wtr->writeV( $ver >= 1, $box->{duration} );
+      $wtr->write32( $box->{rate} );
+      $wtr->write16( $box->{volume} );
+      $wtr->write16( 0 );
+      $wtr->write32( 0, 0 );
+      $wtr->write32(
+        @{ $box->{matrix} },
+        @{ $box->{pre_defined} },
+        $box->{next_track_ID}
+      );
+    },
     ftyp => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       $wtr->write32( @{$box}{ 'major_brand', 'minor_version' },
