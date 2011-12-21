@@ -134,7 +134,10 @@ sub atom_smasher {
     },
     stsz => full_box {
       my $rdr = shift;
-      { entries => [ map { $rdr->read16 } 1 .. $rdr->read32 ] };
+      {
+        sample_size => $rdr->read32,
+        entries     => [ map { $rdr->read32 } 1 .. $rdr->read32 ]
+      };
     },
     stss => full_box {
       my $rdr = shift;
@@ -538,8 +541,7 @@ sub box_pusher {
     stsz => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my @ents = @{ $box->{entries} };
-      $wtr->write32( scalar @ents );
-      $wtr->write16( @ents );
+      $wtr->write32( $box->{sample_size}, scalar( @ents ), @ents );
     },
     stss => push_full {
       my ( $wtr, $pusher, $box ) = @_;
