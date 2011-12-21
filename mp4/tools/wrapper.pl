@@ -16,7 +16,7 @@ use BBC::HDS::MP4::Relocator;
 
 my @CONTAINER = qw(
  dinf edts mdia minf moof moov
- mvex stbl traf trak
+ mvex stbl traf trak udta
 );
 
 my $src  = shift @ARGV;
@@ -108,7 +108,7 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    udta => $keep,
+    ilst => $keep,
     tref => $keep,
 
     # minf
@@ -133,8 +133,12 @@ sub atom_smasher {
     skip => $empty,
 
     # non-containers
+    meta => full_box {
+      my ( $rdr, $ver, $fl, @a ) = @_;
+      return { boxes => walk( $rdr, @a ) };
+    },
     hdlr => full_box {
-      my ( $rdr, $ver, $fl ) = @_;
+      my $rdr = shift;
       return {
         pre_defined  => $rdr->read32,
         handler_type => $rdr->read32,
@@ -187,7 +191,7 @@ sub atom_smasher {
       };
     },
     ftyp => full_box {
-      my ( $rdr, $ver, $fl ) = @_;
+      my $rdr  = shift;
       my $ftyp = {
         major_brand       => $rdr->read32,
         minor_version     => $rdr->read32,
@@ -464,6 +468,10 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    meta => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      write_boxes( $wtr, $pusher, $box->{boxes} );
+    },
     hdlr => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       $wtr->write32( @{$box}{ 'pre_defined', 'handler_type' }, 0, 0, 0 );
