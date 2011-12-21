@@ -108,7 +108,6 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    hdlr => $keep,
     udta => $keep,
     tref => $keep,
 
@@ -134,6 +133,15 @@ sub atom_smasher {
     skip => $empty,
 
     # non-containers
+    hdlr => full_box {
+      my ( $rdr, $ver, $fl ) = @_;
+      return {
+        pre_defined  => $rdr->read32,
+        handler_type => $rdr->read32,
+        _1           => [ map { $rdr->read32 } 1 .. 3 ],
+        name         => $rdr->readZ,
+      };
+    },
     mdhd => full_box {
       my ( $rdr, $ver, $fl ) = @_;
       return {
@@ -456,6 +464,11 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    hdlr => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32( @{$box}{ 'pre_defined', 'handler_type' }, 0, 0, 0 );
+      $wtr->writeZ( $box->{name} );
+    },
     mdhd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my $ver = $box->{version};
