@@ -113,9 +113,6 @@ sub atom_smasher {
     afra => $keep,
 
     # minf
-    hmhd => $keep,
-    nmhd => $keep,
-    smhd => $keep,
     vmhd => $keep,
     mfhd => $keep,
     stsc => $keep,
@@ -125,12 +122,32 @@ sub atom_smasher {
     stts => $keep,
 
     free => $empty,
+    nmhd => $empty,
     skip => $empty,
 
     # format unknown
     ilst => $keep,
 
     # non-containers
+    smhd => full_box {
+      my $rdr = shift;
+      return {
+        balance => $rdr->read16,
+        _1      => $rdr->read16,
+      };
+    },
+    nmhd => full_box { {} },
+    hmhd => full_box {
+      # UNTESTED
+      my $rdr = shift;
+      return {
+        maxPDUsize => $rdr->read16,
+        avgPDUsize => $rdr->read16,
+        maxbitrate => $rdr->read32,
+        avgbitrate => $rdr->read32,
+        reserved   => $rdr->read32,
+      };
+    },
     tref => full_box {
       # UNTESTED
       my $rdr = shift;
@@ -473,6 +490,17 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    smhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write16( $box->{balance}, 0 );
+    },
+    nmhd => push_full { },
+    hmhd => push_full {
+      # UNTESTED
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write16( @{$box}{ 'maxPDUsize', 'avgPDUsize' } );
+      $wtr->write32( @{$box}{ 'maxbitrate', 'avgbitrate', 'reserved' } );
+    },
     tref => push_full {
       # UNTESTED
       my ( $wtr, $pusher, $box ) = @_;
