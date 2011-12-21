@@ -1,0 +1,31 @@
+Parse remaining boxes
+
+Convert a single fragment to a movie
+
+Convert multiple fragments to a movie
+
+Convert a segment to a movie
+
+Convert multiople segments to a movie
+
+Complete L2V tool.
+
+  Time codes accurate?
+
+  elst editing?
+
+Plan A
+
+  Convert existing reader / writer to objects
+
+Plan B
+
+  Parse ISO data structure language
+
+    Extract data structures from spec
+
+  Build reader, writer from spec
+
+Merge abst support with main box parser
+
+Bootstrap merging?
