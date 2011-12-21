@@ -18,6 +18,17 @@ sub new {
   return bless { reloc => \@rel }, $class;
 }
 
+=head3 C<< null >>
+
+Create a NOP relocator.
+
+=cut
+
+sub null {
+  my $class = shift;
+  return $class->new( [ 0, ( ~0 >> 1 ), 0 ] );
+}
+
 sub _check {
   my ( $class, $rel ) = @_;
   for my $i ( 1 .. $#$rel ) {

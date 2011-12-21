@@ -30,7 +30,8 @@ if ( @ARGV ) {
 }
 else {
   layout( $root );
-  print Dumper( $root );
+  print Data::Dumper->new( [$root] )->Indent( 2 )->Quotekeys( 0 )->Useqq( 1 )->Terse( 1 )
+   ->Dump;
 }
 
 sub report {
@@ -42,6 +43,7 @@ sub report {
 sub hist {
   my ( $title, $hash ) = @_;
   return unless keys %$hash;
+  my $ldr  = '# ';
   my $size = sub {
     my $x = shift;
     return scalar @$x if 'ARRAY' eq ref $x;
@@ -51,8 +53,8 @@ sub hist {
   my @keys = sort { $hist{$b} <=> $hist{$a} } keys %hist;
   my $kw = max 1, map { length $_ } keys %hist;
   my $vw = max 1, map { length $_ } values %hist;
-  my $fmt = "  %-${kw}s : %${vw}d\n";
-  print "$title:\n";
+  my $fmt = "$ldr  %-${kw}s : %${vw}d\n";
+  print "$ldr$title:\n";
   printf $fmt, $_, $hist{$_} for @keys;
 }
 
@@ -359,7 +361,7 @@ sub atom_smasher {
     my ( $rdr, $smasher ) = @_;
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
-    printf "%08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
+    printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
     if ( my $hdlr = $BOX{$type} ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
@@ -466,7 +468,7 @@ sub write_boxes {
 sub layout {
   my ( $root ) = @_;
   write_boxes( BBC::HDS::MP4::IONullWriter->new,
-    box_pusher( BBC::HDS::MP4::Relocator->new( [ 0, ( ~0 >> 1 ), 0 ] ) ), $root );
+    box_pusher( BBC::HDS::MP4::Relocator->null ), $root );
 }
 
 sub reloc_index {
