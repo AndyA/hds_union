@@ -108,21 +108,16 @@ sub atom_smasher {
     # bits we want to remember
     mdat => $keep,
 
-    ilst => $keep,
-    tref => $keep,
+    # Adobe specific
+    abst => $keep,
+    afra => $keep,
 
     # minf
     hmhd => $keep,
     nmhd => $keep,
     smhd => $keep,
     vmhd => $keep,
-
-    # ignore
-    abst => $keep,
-    afra => $keep,
     mfhd => $keep,
-
-    # unknown
     stsc => $keep,
     stsd => $keep,
     stss => $keep,
@@ -132,7 +127,17 @@ sub atom_smasher {
     free => $empty,
     skip => $empty,
 
+    # format unknown
+    ilst => $keep,
+
     # non-containers
+    tref => full_box {
+      # UNTESTED
+      my $rdr = shift;
+      my @ids = ();
+      push @ids, $rdr->read32 while $rdr->avail;
+      return { track_IDs => \@ids };
+    },
     meta => full_box {
       my ( $rdr, $ver, $fl, @a ) = @_;
       return { boxes => walk( $rdr, @a ) };
@@ -468,6 +473,11 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    tref => push_full {
+      # UNTESTED
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32( @{ $box->{track_IDs} } );
+    },
     meta => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       write_boxes( $wtr, $pusher, $box->{boxes} );
