@@ -466,7 +466,7 @@ sub write_boxes {
 sub layout {
   my ( $root ) = @_;
   write_boxes( BBC::HDS::MP4::IONullWriter->new,
-    box_pusher( BBC::HDS::MP4::Relocator->new ), $root );
+    box_pusher( BBC::HDS::MP4::Relocator->new( [ 0, ( ~0 >> 1 ), 0 ] ) ), $root );
 }
 
 sub reloc_index {

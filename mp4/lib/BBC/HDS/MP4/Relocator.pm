@@ -50,7 +50,7 @@ sub _reloc {
     }
   }
 
-  return $src;
+  croak "No relocation for $src";
 }
 
 1;

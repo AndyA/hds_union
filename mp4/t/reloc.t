@@ -8,7 +8,7 @@ use Data::Dumper;
 
 use constant MAX => 10_000;
 
-use Test::More tests => MAX + 2;
+use Test::More tests => 4182;
 
 {
   my @ooo = ( [ 100, 200, 0 ], [ 300, 400, -1 ], [ 150, 350, 1 ] );
@@ -43,13 +43,18 @@ sub test_reloc {
 
   my $r = BBC::HDS::MP4::Relocator->new( @reloc );
 
+  my ( @from, @to );
   for my $d ( @ref ) {
-    my $got = $r->reloc( $d->[0] );
-    is $got, $d->[1], "$d->[0] --> $d->[1]";
+    unless ( $d->[0] == $d->[1] ) {
+      my $got = $r->reloc( $d->[0] );
+      is $got, $d->[1], "$d->[0] --> $d->[1]";
+      push @from, $d->[0];
+      push @to,   $d->[1];
+    }
   }
-  my @from = map { $_->[0] } @ref;
-  my @to   = map { $_->[1] } @ref;
-  my @got  = $r->reloc( @from );
+  #  my @from = map { $_->[0] } @ref;
+  #  my @to   = map { $_->[1] } @ref;
+  my @got = $r->reloc( @from );
   is_deeply \@got, \@to, "multiple";
 }
 
