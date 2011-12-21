@@ -112,14 +112,8 @@ sub atom_smasher {
     abst => $keep,
     afra => $keep,
 
-    # minf
-    vmhd => $keep,
-    mfhd => $keep,
-    stsc => $keep,
+    # TODO
     stsd => $keep,
-    stss => $keep,
-    stsz => $keep,
-    stts => $keep,
 
     free => $empty,
     nmhd => $empty,
@@ -129,6 +123,49 @@ sub atom_smasher {
     ilst => $keep,
 
     # non-containers
+    stts => full_box {
+      my $rdr = shift;
+      {
+        entries => [
+          map { { sample_count => $rdr->read32, sample_data => $rdr->read32, } }
+           1 .. $rdr->read32
+        ]
+      };
+    },
+    stsz => full_box {
+      my $rdr = shift;
+      { entries => [ map { $rdr->read16 } 1 .. $rdr->read32 ] };
+    },
+    stss => full_box {
+      my $rdr = shift;
+      { entries => [ map { $rdr->read32 } 1 .. $rdr->read32 ] };
+    },
+    stsc => full_box {
+      my $rdr = shift;
+      {
+        entries => [
+          map {
+            {
+              first_chunk              => $rdr->read32,
+              samples_per_chunk        => $rdr->read32,
+              sample_description_index => $rdr->read32,
+            }
+           } 1 .. $rdr->read32
+        ]
+      };
+    },
+    mfhd => full_box {
+      # UNTESTED
+      my $rdr = shift;
+      return { sequence_number => $rdr->read32 };
+    },
+    vmhd => full_box {
+      my $rdr = shift;
+      return {
+        graphicsmode => $rdr->read16,
+        opcolor      => [ map { $rdr->read16 } 1 .. 3 ],
+      };
+    },
     smhd => full_box {
       my $rdr = shift;
       return {
@@ -490,6 +527,43 @@ sub box_pusher {
     # non-containers
     free => $nop,
     skip => $nop,
+    stts => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ents = @{ $box->{entries} };
+      $wtr->write32( scalar @ents );
+      for my $e ( @ents ) {
+        $wtr->write32( @{$e}{ 'sample_count', 'sample_data' } );
+      }
+    },
+    stsz => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ents = @{ $box->{entries} };
+      $wtr->write32( scalar @ents );
+      $wtr->write16( @ents );
+    },
+    stss => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ents = @{ $box->{entries} };
+      $wtr->write32( scalar( @ents ), @ents );
+    },
+    stsc => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      my @ents = @{ $box->{entries} };
+      $wtr->write32( scalar @ents );
+      for my $e ( @ents ) {
+        $wtr->write32(
+          @{$e}{ 'first_chunk', 'samples_per_chunk', 'sample_description_index' } );
+      }
+    },
+    mfhd => push_full {
+      # UNTESTED
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write32( $box->{sequence_number} );
+    },
+    vmhd => push_full {
+      my ( $wtr, $pusher, $box ) = @_;
+      $wtr->write16( $box->{graphicsmode}, @{ $box->{opcolor} } );
+    },
     smhd => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       $wtr->write16( $box->{balance}, 0 );
