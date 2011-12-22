@@ -7,6 +7,8 @@ use Carp qw( croak );
 use Data::Dumper;
 use Data::Hexdumper;
 use List::Util qw( min );
+use Path::Class;
+use Scalar::Util qw( weaken );
 
 use base qw( BBC::HDS::MP4::IOBase );
 
@@ -21,10 +23,8 @@ sub new {
 
   my ( $src, @loc ) = 'ARRAY' eq ref $from ? @$from : ( $from );
 
-  my ( $fh, $cont_start, $cont_size, @path )
-   = ( UNIVERSAL::can( $src, 'isa' ) && $src->isa( 'BBC::HDS::MP4::IOReader' ) )
-   ? $class->_fh_from_rdr( $src )
-   : $class->_fh_from_fh( $src );
+  my ( $fh, $name, $cont_start, $cont_size, @path )
+   = ( ref $src ) ? $class->_fh_from_rdr( $src ) : $class->_fh_from_file( $src );
 
   $start = 0 unless defined $start;
   $size = $cont_size - $start unless defined $size;
@@ -36,6 +36,7 @@ sub new {
 
   return bless {
     fh    => $fh,
+    name  => $name,
     start => $file_start,
     size  => $size,
     pos   => 0,
@@ -43,16 +44,38 @@ sub new {
   }, $class;
 }
 
-sub _fh_from_rdr {
-  my ( $class, $rdr ) = @_;
-  return ( $rdr->{fh}, $rdr->{start}, $rdr->{size}, @{ $rdr->{path} } );
+sub _fh_from_file {
+  my ( $class, $name ) = @_;
+
+  my $fh = file( $name )->openr;
+  my @st = stat $fh or croak "Can't stat handle: $!\n";
+  return ( $fh, $name, 0, $st[7] );
 }
 
-sub _fh_from_fh {
-  my ( $class, $fh ) = @_;
-  my @st = stat $fh or croak "Can't stat handle: $!\n";
-  return ( $fh, 0, $st[7] );
+sub _fh_from_rdr {
+  my ( $class, $rdr ) = @_;
+  return ( $rdr->fh, $rdr->{name}, $rdr->{start}, $rdr->{size}, @{ $rdr->{path} } );
 }
+
+{
+  my %file_cache = ();
+
+  sub _open {
+    my $self = shift;
+    my $name = $self->{name};
+    return $file_cache{$name} if $file_cache{$name};
+    my $fh = file( $name )->openr;
+    weaken( $file_cache{$name} = $fh );
+    return $fh;
+  }
+}
+
+sub fh {
+  my $self = shift;
+  return $self->{fh} ||= $self->_open;
+}
+
+sub close { delete shift->{fh} }
 
 sub path {
   my @path = @{ shift->{path} };
@@ -86,7 +109,7 @@ sub avail {
 sub read {
   my ( $self, $len ) = @_;
 
-  my $fh    = $self->{fh};
+  my $fh    = $self->fh;
   my $pos   = $self->{pos} + $self->{start};
   my $avail = $self->{size} - $self->{pos};
 

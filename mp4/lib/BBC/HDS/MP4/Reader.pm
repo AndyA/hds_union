@@ -3,7 +3,7 @@ package BBC::HDS::MP4::Reader;
 use strict;
 use warnings;
 
-use Path::Class;
+use Carp qw( croak confess );
 use Scalar::Util qw( blessed );
 
 use BBC::HDS::MP4::IOReader;
@@ -21,13 +21,41 @@ my @CONTAINER = qw(
 );
 
 sub parse {
-  my ( $class, $rdr, $data ) = @_;
+  my ( $class, $name, $data ) = @_;
+  my $root = walk( BBC::HDS::MP4::IOReader->new( $name ),
+    atom_smasher( iso_box_dec(), $data || {} ) );
+  batten_down( $root );
+  return $root;
+}
 
-  $rdr = file( $rdr )->openr unless ref $rdr;
-  $rdr = BBC::HDS::MP4::IOReader->new( $rdr )
-   unless blessed( $rdr ) && $rdr->isa( 'BBC::HDS::MP4::IOReader' );
+sub visit(&$) {
+  my ( $cb, $data ) = @_;
 
-  return walk( $rdr, atom_smasher( iso_box_dec(), $data || {} ) );
+  return unless ref $data;
+
+  if ( 'HASH' eq ref $data ) {
+    return if exists $data->{type} && $cb->( $data );
+    &visit( $cb, $_ ) for values %$data;
+  }
+  elsif ( 'ARRAY' eq ref $data ) {
+    &visit( $cb, $_ ) for @$data;
+  }
+  else {
+    confess "Not HASH or ARRAY";
+  }
+}
+
+sub batten_down {
+  my $data = shift;
+  visit {
+    my $box = shift;
+    if ( my $rdr = $box->{reader} ) {
+      $rdr->close;
+      return 1;
+    }
+    return;
+  }
+  $data;
 }
 
 sub make_dump {

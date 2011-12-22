@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp qw( croak );
+use Path::Class;
 
 use base qw( BBC::HDS::MP4::IOBase );
 
@@ -14,7 +15,8 @@ BBC::HDS::MP4::IOWriter - do something
 =cut
 
 sub new {
-  my ( $class, $fh ) = @_;
+  my ( $class, $name ) = @_;
+  my $fh = file( $name )->openw;
   return bless { fh => $fh }, $class;
 }
 
