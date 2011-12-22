@@ -18,9 +18,6 @@ Plan A
 
   Convert existing reader / writer to objects
 
-    Can Perl class hierarchy automagically cause correct reader /
-    writer behaviour? Walk ISA chain?
-
 Plan B
 
   Parse ISO data structure language
