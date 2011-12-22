@@ -134,6 +134,13 @@ sub readZ {
   return $str;
 }
 
+sub readS {
+  my ( $self, $len ) = @_;
+  my $str = $self->need( $len );
+  $str =~ s/\0.*//;
+  return $str;
+}
+
 sub read8ar {
   my ( $self, $cb ) = @_;
   [ map { $cb->( $self ) } 1 .. $self->read8 ];

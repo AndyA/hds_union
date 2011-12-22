@@ -50,6 +50,13 @@ sub writeZ {
   shift->write( map { "$_\0" } @_ );
 }
 
+sub writeS {
+  my ( $self, $str, $len ) = @_;
+  croak "String too long: \"$str\", $len"
+   if length $str > $len;
+  $self->write( $str, "\0" x ( $len - length $str ) );
+}
+
 sub write8ar {
   my ( $self, $cb, @data ) = @_;
   croak "Can't write more than 255 elements"
