@@ -401,7 +401,7 @@ sub atom_smasher {
     my ( $rdr, $smasher ) = @_;
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
-    printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
+    #    printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
     if ( my $hdlr = $decode->( { type => $type } ) ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
