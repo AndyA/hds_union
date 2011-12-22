@@ -893,7 +893,7 @@ sub box_pusher {
   return sub {
     my ( $wtr, $pusher, $box ) = @_;
     my $type = $box->{type};
-    my $long = 0 && $IS_LONG{$type} || 0;
+    my $long = $IS_LONG{$type} || 0;
     my $hdlr = $encode->( $box );
     push_box( $wtr, $pusher, $box, $long, $hdlr ) if $hdlr;
   };
@@ -901,7 +901,6 @@ sub box_pusher {
 
 sub reorg {
   my $root = shift;
-  return $root;
   my ( @last, @first );
   for my $box ( @$root ) {
     next unless defined $box;

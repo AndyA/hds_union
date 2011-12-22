@@ -18,7 +18,8 @@ sub new { bless { pos => 0, size => 0 }, shift }
 sub is_null { 1 }
 
 sub write {
-  my ( $self, $data ) = @_;
+  my ( $self, @data ) = @_;
+  my $data = join '', @data;
   $self->seek( length $data, 1 );
   $self;
 }
