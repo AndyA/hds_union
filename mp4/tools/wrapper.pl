@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use Data::Dumper;
-use Path::Class;
 use List::Util qw( max );
 
 use lib qw( lib );
@@ -12,14 +11,12 @@ use lib qw( lib );
 use BBC::HDS::MP4::Reader;
 use BBC::HDS::MP4::Writer;
 
-my $src  = shift @ARGV;
-my $rdr  = BBC::HDS::MP4::IOReader->new( file( $src )->openr );
-my $root = BBC::HDS::MP4::Reader->parse( $rdr, my $data = {} );
+my $src = shift @ARGV;
+my $root = BBC::HDS::MP4::Reader->parse( $src, my $data = {} );
 report( $data );
 if ( @ARGV ) {
   my $dst = shift @ARGV;
-  my $wtr = BBC::HDS::MP4::IOWriter->new( file( $dst )->openw );
-  BBC::HDS::MP4::Writer->write( $wtr, reorg( $root ) );
+  BBC::HDS::MP4::Writer->write( $dst, reorg( $root ) );
 }
 else {
   print Data::Dumper->new( [$root] )->Indent( 2 )->Quotekeys( 0 )->Useqq( 1 )->Terse( 1 )

@@ -3,6 +3,9 @@ package BBC::HDS::MP4::Reader;
 use strict;
 use warnings;
 
+use Path::Class;
+use Scalar::Util qw( blessed );
+
 use BBC::HDS::MP4::IOReader;
 use BBC::HDS::MP4::Util;
 
@@ -19,6 +22,11 @@ my @CONTAINER = qw(
 
 sub parse {
   my ( $class, $rdr, $data ) = @_;
+
+  $rdr = file( $rdr )->openr unless ref $rdr;
+  $rdr = BBC::HDS::MP4::IOReader->new( $rdr )
+   unless blessed( $rdr ) && $rdr->isa( 'BBC::HDS::MP4::IOReader' );
+
   return walk( $rdr, atom_smasher( iso_box_dec(), $data || {} ) );
 }
 

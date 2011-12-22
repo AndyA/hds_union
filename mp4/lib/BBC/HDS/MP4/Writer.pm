@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use Carp qw( croak confess );
+use Path::Class;
+use Scalar::Util qw( blessed );
 
 use BBC::HDS::MP4::IONullWriter;
 use BBC::HDS::MP4::IOWriter;
@@ -23,6 +25,11 @@ BBC::HDS::MP4::Writer - Write MP4
 
 sub write {
   my ( $class, $wtr, $boxes ) = @_;
+
+  $wtr = file( $wtr )->openw unless ref $wtr;
+  $wtr = BBC::HDS::MP4::IOWriter->new( $wtr )
+   unless blessed( $wtr ) && $wtr->isa( 'BBC::HDS::MP4::IOWriter' );
+
   my $lsz = layout( $boxes );
   write_boxes( $wtr,
     box_pusher( iso_box_enc( BBC::HDS::MP4::Relocator->new( reloc_index( $boxes ) ) ) ),
