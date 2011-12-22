@@ -21,7 +21,7 @@ my @CONTAINER = qw(
 
 my $src  = shift @ARGV;
 my $rdr  = BBC::HDS::MP4::IOReader->new( file( $src )->openr );
-my $root = walk( $rdr, atom_smasher( my $data = {} ) );
+my $root = walk( $rdr, atom_smasher( iso_box_dec(), my $data = {} ) );
 report( $data );
 if ( @ARGV ) {
   my $dst = shift @ARGV;
@@ -88,10 +88,7 @@ sub full_box(&) {
 
 sub void { return }
 
-sub atom_smasher {
-  my $data  = shift;
-  my $depth = 0;
-
+sub iso_box_dec {
   my $drop = sub { return };
 
   my $keep = sub {
@@ -106,7 +103,7 @@ sub atom_smasher {
 
   my $empty = sub { { type => shift->fourCC } };
 
-  my %BOX = (
+  my $decode = {
     # bits we want to remember
     mdat => $keep,
 
@@ -352,17 +349,22 @@ sub atom_smasher {
         default_sample_flags             => $rdr->read32,
       };
     },
+  };
 
-  );
+  $decode->{$_} = $walk for @CONTAINER;
+  return $decode;
+}
 
-  $BOX{$_} = $walk for @CONTAINER;
+sub atom_smasher {
+  my ( $decode, $data ) = @_;
+  my $depth = 0;
 
   my $cb = sub {
     my ( $rdr, $smasher ) = @_;
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
     printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
-    if ( my $hdlr = $BOX{$type} ) {
+    if ( my $hdlr = $decode->{$type} ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
       push @{ $data->{flat}{$type} }, $rc;
@@ -468,7 +470,7 @@ sub write_boxes {
 sub layout {
   my ( $root ) = @_;
   write_boxes( BBC::HDS::MP4::IONullWriter->new,
-    box_pusher( BBC::HDS::MP4::Relocator->null ), $root );
+    box_pusher( iso_box_enc( BBC::HDS::MP4::Relocator->null ) ), $root );
 }
 
 sub reloc_index {
@@ -496,11 +498,12 @@ sub reloc_index {
 sub make_file {
   my ( $wtr, $boxes ) = @_;
   layout( $boxes );
-  write_boxes( $wtr, box_pusher( BBC::HDS::MP4::Relocator->new( reloc_index( $boxes ) ) ),
+  write_boxes( $wtr,
+    box_pusher( iso_box_enc( BBC::HDS::MP4::Relocator->new( reloc_index( $boxes ) ) ) ),
     $boxes );
 }
 
-sub box_pusher {
+sub iso_box_enc {
   my $reloc = shift;
 
   my $copy = sub {
@@ -526,9 +529,9 @@ sub box_pusher {
 
   my $nop = sub { };
 
-  my %IS_LONG = map { $_ => 1 } qw( mdat );
-
-  my %BOX = (
+  my $encoder = {
+    # not real!
+    _COPY => $copy,
     # non-containers
     free => $nop,
     skip => $nop,
@@ -721,22 +724,22 @@ sub box_pusher {
          }
       );
     },
-  );
+  };
+  $encoder->{$_} = $container for @CONTAINER;
+  return $encoder;
+}
 
-  $BOX{$_} = $container for @CONTAINER;
+sub box_pusher {
+  my $encoder = shift;
+
+  my %IS_LONG = map { $_ => 1 } qw( mdat );
 
   return sub {
     my ( $wtr, $pusher, $box ) = @_;
-
     my $type = $box->{type};
     my $long = $IS_LONG{$type} || 0;
-
-    # HACK
-    $BOX{$type} = $copy if $box->{reader};
-
-    if ( my $hdlr = $BOX{$type} ) {
-      push_box( $wtr, $pusher, $box, $long, $hdlr );
-    }
+    my $hdlr = $encoder->{$type} || ( $box->{reader} && $encoder->{_COPY} );
+    push_box( $wtr, $pusher, $box, $long, $hdlr ) if $hdlr;
   };
 }
 
