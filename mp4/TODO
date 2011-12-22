@@ -1,3 +1,8 @@
+== DONE ==
+
+
+== TODO ==
+
 Parse remaining boxes
 
 Convert a single fragment to a movie
@@ -29,3 +34,4 @@ Plan B
 Merge abst support with main box parser
 
 Bootstrap merging?
+
