@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
 use Data::Dumper;
 use Path::Class;
@@ -29,7 +29,7 @@ if ( @ARGV ) {
   make_file( $wtr, reorg( $root ) );
 }
 else {
-  layout( $root );
+  #  layout( $root );
   print Data::Dumper->new( [$root] )->Indent( 2 )->Quotekeys( 0 )->Useqq( 1 )->Terse( 1 )
    ->Dump;
 }
@@ -103,6 +103,75 @@ sub iso_box_dec {
 
   my $empty = sub { { type => shift->fourCC } };
 
+  my $sample_entry = sub {
+    my $rdr = shift;
+    return {
+      type                 => $rdr->fourCC,
+      _1                   => [ map { $rdr->read8 } 1 .. 6 ],
+      data_reference_index => $rdr->read16,
+    };
+  };
+
+  my $visual_sample_entry = sub {
+    my $rdr = shift;
+    my $rec = $sample_entry->( $rdr );
+    return {
+      %$rec,
+      type            => $rdr->fourCC,
+      pre_defined_1   => $rdr->read16,
+      _2              => $rdr->read16,
+      pre_defined_2   => [ map { $rdr->read32 } 1 .. 3 ],
+      width           => $rdr->read16,
+      height          => $rdr->read16,
+      horizresolution => $rdr->read32,
+      vertresolution  => $rdr->read32,
+      _3              => $rdr->read32,
+      frame_count     => $rdr->read16,
+      compressorname  => $rdr->readS( 32 ),
+      depth           => $rdr->read16,
+      pre_defined_3   => $rdr->read16,
+    };
+    # TODO CleanApertureBox, PixelAspectRatioBox
+  };
+
+  my $avc_config = sub {
+    my $rdr = shift;
+    return {
+      type                        => $rdr->fourCC,
+      configurationVersion        => $rdr->read8,
+      AVCProfileIndication        => $rdr->read8,
+      profile_compatibility       => $rdr->read8,
+      AVCLevelIndication          => $rdr->read8,
+      lengthSizeMinusOne          => $rdr->read8 & 0x03,
+      sequenceParameterSetNALUnit => [
+        map {
+          [ map { $rdr->read8 } 1 .. $rdr->read16 ]
+         } 1 .. $rdr->read8 & 0x1f
+      ],
+      pictureParameterSetNALUnit => [
+        map {
+          [ map { $rdr->read8 } 1 .. $rdr->read16 ]
+         } 1 .. $rdr->read8
+      ],
+    };
+  };
+
+  my $avc_sample_entry = sub {
+    my ( $rdr, $smasher ) = @_;
+    my $vse = $visual_sample_entry->( $rdr );
+    return { %$vse, type => $rdr->fourCC, boxes => walk( $rdr, $smasher ) };
+  };
+
+  my %stsd = (
+    soun => $keep,
+    vide => $keep,
+    hint => $keep,
+    meta => $keep,
+    avc1 => $avc_sample_entry,
+    avcC => $avc_config,
+    '*'  => $keep,
+  );
+
   my $decode = {
     # bits we want to remember
     mdat => $keep,
@@ -112,7 +181,6 @@ sub iso_box_dec {
     afra => $keep,
 
     # TODO
-    stsd => $keep,
 
     free => $empty,
     nmhd => $empty,
@@ -122,6 +190,11 @@ sub iso_box_dec {
     ilst => $keep,
 
     # non-containers
+    stsd => full_box {
+      my $rdr = shift;
+      my $smasher = atom_smasher( make_resolver( \%stsd ), {} );
+      return { boxes => [ map { walk_box( $rdr, $smasher ) } 1 .. $rdr->read32 ] };
+    },
     stts => full_box {
       my $rdr = shift;
       {
@@ -203,7 +276,7 @@ sub iso_box_dec {
       return {
         pre_defined  => $rdr->read32,
         handler_type => $rdr->read32,
-        _1           => [ map { $rdr->read32 } 1 .. 3 ],
+        unk1         => [ map { $rdr->read32 } 1 .. 3 ],
         name         => $rdr->readZ,
       };
     },
@@ -318,7 +391,7 @@ sub iso_box_dec {
     },
     dref => full_box {
       my ( $rdr, $ver, $fl, $smasher ) = @_;
-      { dref => [ map { walk_box( $rdr, $smasher ) } 1 .. $rdr->read32 ] };
+      return { dref => [ map { walk_box( $rdr, $smasher ) } 1 .. $rdr->read32 ] };
     },
     elst => full_box {
       my ( $rdr, $ver, $fl ) = @_;
@@ -352,7 +425,17 @@ sub iso_box_dec {
   };
 
   $decode->{$_} = $walk for @CONTAINER;
-  return $decode;
+
+  return make_resolver( $decode );
+}
+
+sub make_resolver {
+  my $hash = shift;
+  return sub {
+    my $box  = shift;
+    my $type = $box->{type};
+    return $hash->{$type} || $hash->{'*'};
+  };
 }
 
 sub atom_smasher {
@@ -364,7 +447,7 @@ sub atom_smasher {
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
     printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
-    if ( my $hdlr = $decode->{$type} ) {
+    if ( my $hdlr = $decode->( { type => $type } ) ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
       push @{ $data->{flat}{$type} }, $rc;
@@ -522,6 +605,18 @@ sub iso_box_enc {
     }
   };
 
+  my $magic = sub {
+    my $encode = shift;
+    my $rs     = make_resolver( $encode );
+    return sub {
+      my $box  = shift;
+      my $hdlr = $rs->( $box );
+      return $hdlr if $hdlr;
+      return $copy if $box->{reader};
+      return;
+    };
+  };
+
   my $container = sub {
     my ( $wtr, $pusher, $box ) = @_;
     write_boxes( $wtr, $pusher, $box->{boxes} );
@@ -529,12 +624,72 @@ sub iso_box_enc {
 
   my $nop = sub { };
 
-  my $encoder = {
-    # not real!
-    _COPY => $copy,
+  my $sample_entry = sub {
+    my ( $wtr, $pusher, $box ) = @_;
+    $wtr->write8( ( 0 ) x 6 );
+    $wtr->write16( $box->{data_reference_index} );
+  };
+
+  my $visual_sample_entry = sub {
+    $sample_entry->( @_ );
+    my ( $wtr, $pusher, $box ) = @_;
+    $wtr->write16( 0, 0 );
+    $wtr->write32( 0, 0, 0 );
+    $wtr->write16( $box->{width}, $box->{height} );
+    $wtr->write32( $box->{horizresolution}, $box->{vertresolution} );
+    $wtr->write32( 0 );
+    $wtr->write16( $box->{frame_count} );
+    $wtr->writeS( $box->{compressorname}, 32 );
+    $wtr->write16( $box->{depth} );
+    $wtr->write16( 0xffff );
+  };
+
+  my $avc_config = sub {
+    my ( $wtr, $pusher, $box ) = @_;
+    $wtr->write8(
+      @{$box}{
+        'configurationVersion',  'AVCProfileIndication',
+        'profile_compatibility', 'AVCLevelIndication'
+       },
+      $box->{lengthSizeMinusOne} | 0xfc
+    );
+
+    my @sps = @{ $box->{sequenceParameterSetNALUnit} };
+    $wtr->write8( scalar( @sps ) | 0xe0 );
+    for my $el ( @sps ) {
+      $wtr->write16( scalar @$el );
+      $wtr->write8( @$el );
+    }
+
+    my @pps = @{ $box->{pictureParameterSetNALUnit} };
+    $wtr->write8( scalar( @pps ) );
+    for my $el ( @pps ) {
+      $wtr->write16( scalar @$el );
+      $wtr->write8( @$el );
+    }
+  };
+
+  my $avc_sample_entry = sub {
+    $visual_sample_entry->( @_ );
+    my ( $wtr, $pusher, $box ) = @_;
+    write_boxes( $wtr, $pusher, $box->{boxes} );
+  };
+
+  my %stsd = (
+    avc1 => $avc_sample_entry,
+    avcC => $avc_config,
+  );
+
+  my $encode = {
     # non-containers
     free => $nop,
     skip => $nop,
+    stsd => push_full {
+      my ( $wtr, undef, $box ) = @_;
+      my $pusher = box_pusher( $magic->( \%stsd ) );
+      $wtr->write32( scalar @{ $box->{boxes} } );
+      write_boxes( $wtr, $pusher, $box->{boxes} );
+    },
     stts => push_full {
       my ( $wtr, $pusher, $box ) = @_;
       my @ents = @{ $box->{entries} };
@@ -593,7 +748,7 @@ sub iso_box_enc {
     },
     hdlr => push_full {
       my ( $wtr, $pusher, $box ) = @_;
-      $wtr->write32( @{$box}{ 'pre_defined', 'handler_type' }, 0, 0, 0 );
+      $wtr->write32( @{$box}{ 'pre_defined', 'handler_type' }, @{ $box->{unk1} } );
       $wtr->writeZ( $box->{name} );
     },
     mdhd => push_full {
@@ -613,7 +768,6 @@ sub iso_box_enc {
       $wtr->writeV( $ver >= 1, $box->{duration} );
       $wtr->write32( 0, 0 );
       $wtr->write16( @{$box}{ 'layer', 'alternate_group', 'volume' }, 0 );
-      $wtr->write16( $box->{alternate_group} );
       $wtr->write32( @{ $box->{matrix} }, $box->{width}, $box->{height}, );
     },
     mvhd => push_full {
@@ -725,26 +879,29 @@ sub iso_box_enc {
       );
     },
   };
-  $encoder->{$_} = $container for @CONTAINER;
-  return $encoder;
+  $encode->{$_} = $container for @CONTAINER;
+
+  return $magic->( $encode );
+
 }
 
 sub box_pusher {
-  my $encoder = shift;
+  my $encode = shift;
 
   my %IS_LONG = map { $_ => 1 } qw( mdat );
 
   return sub {
     my ( $wtr, $pusher, $box ) = @_;
     my $type = $box->{type};
-    my $long = $IS_LONG{$type} || 0;
-    my $hdlr = $encoder->{$type} || ( $box->{reader} && $encoder->{_COPY} );
+    my $long = 0 && $IS_LONG{$type} || 0;
+    my $hdlr = $encode->( $box );
     push_box( $wtr, $pusher, $box, $long, $hdlr ) if $hdlr;
   };
 }
 
 sub reorg {
   my $root = shift;
+  return $root;
   my ( @last, @first );
   for my $box ( @$root ) {
     next unless defined $box;
