@@ -30,5 +30,5 @@ ctags:
 	find ../osmf -name "*.as" -or -name "*.mxml" | ctags -L -
 
 clean:
-	-rm -f tags $(REFBSPL) $(REFHEX) $(REFDUMP)
+	-rm -f tags $(REFBSPL) $(REFPLPL) $(REFHEX) $(REFDUMP)
 
