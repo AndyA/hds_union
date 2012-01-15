@@ -21,10 +21,8 @@ fragment make a gap in a segment?
 sub _build_index {
   my $self = shift;
   my $box  = $self->data;
-  my @box  = (
-    @{ $box->{segment_run_tables}  || [] },
-    @{ $box->{fragment_run_tables} || [] }
-  );
+  my @box
+   = ( @{ $box->{segment_run_tables} || [] }, @{ $box->{fragment_run_tables} || [] } );
   my %idx = ();
   for my $box ( @box ) {
     my $type = $box->{bi}{type};
@@ -81,8 +79,7 @@ sub _frag_factory {
 
       if ( $first == 0 || $first == $idx ) {
         $idx++ if $first > 0;
-        return $prev
-         = { %{ $inspect->( shift @frt ) }, type => 'real', };
+        return $prev = { %{ $inspect->( shift @frt ) }, type => 'real', };
       }
 
       return $make_frag->( 'interpolated' );
@@ -157,11 +154,28 @@ sub set_run_table {
   my @frt = ();
 
   for my $rt ( @$rts ) {
-    my $segs  = [];
-    my $frags = [];
-    my $prev  = undef;
+    my $segs = {
+      runs    => [],
+      quality => [],
+      bi      => {
+        flags => 0,
+        ver   => 0,
+        type  => "asrt"
+      },
+    };
+    my $frags = {
+      timescale => 1000, # TODO copy from source
+      runs      => [],
+      bi        => {
+        flags => 0,
+        ver   => 0,
+        type  => "afrt"
+      },
+      quality => []
+    };
+    my $prev = undef;
     for my $seg ( @$rt ) {
-      push @$segs, { first => $seg->{first}, frags => $seg->{frags} }
+      push @{ $segs->{runs} }, { first => $seg->{first}, frags => $seg->{frags} }
        if exists $seg->{first};
       F: for my $frag ( @{ $seg->{f} } ) {
         my $next = $self->_make_next( $prev );
@@ -177,7 +191,7 @@ sub set_run_table {
         }
         $prev = {%$frag};
         delete $prev->{type};
-        push @$frags, $prev;
+        push @{ $frags->{runs} }, $prev;
       }
     }
     push @srt, $segs;
