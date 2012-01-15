@@ -69,6 +69,7 @@ sub fetch_manifest {
   print "Fetching $uri\n";
   my $resp = ua->get( $uri );
   die $resp->status_line unless $resp->is_success;
+  stash_response( $resp );
   my $doc = XML::LibXML->load_xml( string => $resp->content );
   my $xpc = XML::LibXML::XPathContext->new;
   $xpc->registerNs( m1 => 'http://ns.adobe.com/f4m/1.0' );
@@ -162,6 +163,21 @@ sub download {
   1 while wait != -1;
 }
 
+sub stash_name {
+  my $uri  = URI->new( shift );
+  my @path = split /\//, $uri->path;
+  my $base = pop @path;
+  my $dir  = dir( $Output, @path );
+  $dir->mkpath;
+  return file( $dir, $base );
+}
+
+sub stash_response {
+  my ( $resp, @sfx ) = @_;
+  my $stash = file( join '', stash_name( $resp->request->uri ), @sfx );
+  print { $stash->openw } $resp->content;
+}
+
 sub follow_stream {
   my ( $stream ) = @_;
 
@@ -177,11 +193,8 @@ sub follow_stream {
 
     return if $got{$uri}++;
 
-    my @path = split /\//, $uri->path;
-    my $base = pop @path;
-    my $dir  = dir( $Output, @path );
-    my $tmp  = file( $dir, "$base.tmp" );
-    my $file = file( $dir, $base );
+    my $file = stash_name( $uri );
+    my $tmp  = file( "$file.tmp" );
 
     $tmp->remove;
     return if -f $file;
@@ -195,7 +208,6 @@ sub follow_stream {
       return;
     }
 
-    $dir->mkpath;
     {
       my $fh = $tmp->openw;
       print $fh $resp->content;
@@ -205,6 +217,7 @@ sub follow_stream {
 
   };
 
+  my $next = 0;
   monitor_bootstrap $bs_uri,
    back_off(
     min  => 5,
@@ -213,8 +226,10 @@ sub follow_stream {
    ),
    sub {
     my $resp = shift;
-    return fetch_from_bootstrap( $resp->content, $fetcher )
-     if $resp->is_success;
+    if ( $resp->is_success ) {
+      stash_response( $resp, sprintf '.%06d', $next++ );
+      return fetch_from_bootstrap( $resp->content, $fetcher );
+    }
     return 1;
    };
 }
