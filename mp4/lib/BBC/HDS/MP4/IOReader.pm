@@ -149,11 +149,12 @@ sub readZ {
   my $pos  = $self->tell;
   while ( 1 ) {
     push @p, $self->read( 32 );
-    croak "Unterminated string" unless length $p[-1];
-    last if $p[-1] =~ s/\0.*//;
+    last unless length $p[-1];
+    last if $p[-1] =~ s/\0.*/\0/;
   }
   my $str = join '', @p;
-  $self->seek( $pos + length( $str ) + 1, 0 );
+  $self->seek( $pos + length( $str ), 0 );
+  $str =~ s/\0//;
   return $str;
 }
 
