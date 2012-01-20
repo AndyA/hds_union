@@ -429,7 +429,7 @@ sub atom_smasher {
     my ( $rdr, $smasher ) = @_;
     my $pad  = '  ' x $depth;
     my $type = $rdr->fourCC;
-    #    printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
+    printf "# %08x %10d%s%s\n", $rdr->start, $rdr->size, $pad, $type;
     if ( my $hdlr = $decode->( { type => $type } ) ) {
       my $rc = $hdlr->( $rdr, $smasher );
       push @{ $data->{box}{ $rdr->path } }, $rc;
@@ -469,10 +469,9 @@ sub walk_box {
   my $box = $rdr->tell;
   my ( $size, $type ) = parse_box( $rdr );
   my $pos = $rdr->tell;
-  my $rc  = $smasher->(
-    BBC::HDS::MP4::IOReader->new( [ $rdr, $type ], $pos, $size - ( $pos - $box ) ),
-    $smasher
-  );
+  my $end = $size - ( $pos - $box );
+  my $rc
+   = $smasher->( BBC::HDS::MP4::IOReader->new( [ $rdr, $type ], $pos, $end ), $smasher );
   $rdr->seek( $box + $size, 0 );
   return $rc;
 }
