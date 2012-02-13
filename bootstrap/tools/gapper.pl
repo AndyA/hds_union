@@ -3,7 +3,11 @@
 use strict;
 use warnings;
 
-use lib qw( lib );
+use FindBin;
+
+use lib "$FindBin::Bin/../lib";
+
+use constant FPS => 25;
 
 use BBC::HDS::Bootstrap;
 use BBC::HDS::Bootstrap::Reader;
@@ -33,11 +37,25 @@ sub load_bs {
   return BBC::HDS::Bootstrap::Reader->new( $data )->parse;
 }
 
+sub fmt_time {
+  my $ts  = shift;
+  my @div = ( FPS, 60, 60, 24 );
+  my @p   = ();
+  $ts = int( $ts * FPS );
+  while ( my $div = shift @div ) {
+    unshift @p, sprintf '%02d', $ts % $div;
+    $ts = int( $ts / $div );
+  }
+  return join ':', @p;
+}
+
 sub gapper {
   my ( $bs ) = @_;
   my $abst = $bs->box( abst => 0 );
-  my $rt = $abst->run_table;
-  splice @{ $rt->[0][2]{f} }, 1, 1;
+  my $rt   = $abst->run_table;
+  my $seg  = splice @{ $rt->[0] }, 2, 1;
+  print "Deleted segment at ", fmt_time( $seg->{f}[0]->{timestamp} / 1000 ), "\n";
+  #  print Dumper($frag);
   #  print Dumper( $rt );
   $abst->set_run_table( $rt );
   #  my @nrt  = map { limit_run( $_, $dur ) } @$rt;
