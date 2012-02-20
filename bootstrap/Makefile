@@ -23,7 +23,7 @@ ref: $(REFBSPL) $(REFPLPL) $(REFHEX) $(REFDUMP)
 	hexdump -C $< > $@
 
 %.dump: %.bootstrap
-	-./f4fpackager/linux/f4fpackager --input-file=$< --inspect-bootstrap > $@
+	-../f4fpackager/linux/f4fpackager --input-file=$< --inspect-bootstrap > $@
 
 ctags:
 	-rm -f tags
