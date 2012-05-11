@@ -21,7 +21,13 @@ use constant FPS => 25;
 use constant DAY => 24 * 60 * 60;
 
 my $Output = 'l2v';
-GetOptions( 'output:s' => \$Output );
+my $Skip   = 0;
+my $Count;
+GetOptions(
+  'output:s' => \$Output,
+  'skip:i'   => \$Skip,
+  'count:i'  => \$Count,
+) or die;
 
 my $manifest = shift or die "Please supply a manifest URL";
 
@@ -240,11 +246,16 @@ sub fetch_from_bootstrap {
   my $abst = $bs->box( abst => 0 );
   die "No abst" unless $abst;
 
+  my $skip  = $Skip;
+  my $count = $Count;
+
   my $rts = $abst->run_table;
   for my $rt ( @$rts ) {
     for my $seg ( @$rt ) {
       next unless $seg->{first};
       for my $frag ( @{ $seg->{f} } ) {
+        next if $skip-- > 0;
+        return 1 if defined $count && $count-- <= 0;
         if ( $frag->{duration} == 0 ) {
           #          return if $frag->{discontinuity};
           next;
